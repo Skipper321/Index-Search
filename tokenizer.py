@@ -1,9 +1,13 @@
 # Decoding
 import os
 import sys
-
-# General use modules
 import string
+
+# Stemming and Tokenizing html text and weights 
+import re
+from nltk.stem import PorterStemmer
+from bs4 import BeautifulSoup
+stemmer = PorterStemmer()
 
 
 # sort dictionary by key instead 
@@ -18,9 +22,9 @@ def getSortedList(freq:dict):
     
     return myList
 
-# prints dict
+# prints dict - renamed so that doesn't interfere with built in print function
 # returns list (optional)
-def print(freq:dict) -> list:
+def print_freq(freq:dict) -> list:
     myList = getSortedList(freq)
 
     for i in myList:
@@ -103,7 +107,7 @@ def getSlicedWords(bigWord:string, firstSplit = -1):
 
     return splittedWords
 
-# tokenizer
+# tokenizer - IGNORE we need to use stemming (we just call it for tokenizing alphanumeric)
 def tokenize(input_data: str):
     tokens = []
 
@@ -115,27 +119,49 @@ def tokenize(input_data: str):
 
     for line in raw_list:
         for word in line.split():
-
-            # note: we don't care if the word is duplicate or not, or sorting
-            # we only care about tokens 
-            
-            # this just checks if word is alphanumeric, and if not, then you can become so
-
-            # valid indices are -1 only
             try:
-
                 valIndex = isValidWord(word)
-
                 if valIndex == -1:
-                    tokens.append(word.lower())
+                    stemmed = stemmer.stem(word.lower())
+                    tokens.append(stemmed)
                 else:
                     wordsSlicedFromWord = getSlicedWords(word)
-                    tokens.extend(wordsSlicedFromWord)
+                    stemmed_words = [stemmer.stem(w.lower()) for w in wordsSlicedFromWord]
+                    tokens.extend(stemmed_words)
             except Exception:
-                pass
-                # just skip the word entirely if you can't
+                continue
 
     return tokens
+
+
+# tokenizes HTML, borrows from original tokenizer for alphanum, but also incorporates weights
+def tokenize_html(html: str):
+    #Tokenizes HTML content and applies weighting for title, headings, and bold text.
+    #Returns a dict of stemmed tokens -> weighted term frequency.
+    soup = BeautifulSoup(html, "lxml")
+    weights = {"title": 3.0, "h1": 2.5, "h2": 2.0, "h3": 1.5, "b": 1.25, "strong": 1.25}
+    token_freqs = {}
+
+    # Remove scripts, styles, nav, etc.
+    for tag in soup(["script", "style", "noscript", "footer", "header", "nav"]):
+        tag.extract()
+
+    # Weighted sections
+    for tag_name, weight in weights.items():
+        for tag in soup.find_all(tag_name):
+            text = tag.get_text(separator=" ", strip=True)
+            tokens = tokenize(text)
+            for t in tokens:
+                token_freqs[t] = token_freqs.get(t, 0) + weight
+
+    # Regular body text (weight 1.0)
+    body_text = soup.get_text(separator=" ", strip=True)
+    body_tokens = tokenize(body_text)
+    for t in body_tokens:
+        token_freqs[t] = token_freqs.get(t, 0) + 1.0
+
+    return token_freqs
+
 
 # gets word frequency
 def computeWordFrequencies(tokenList):
@@ -151,9 +177,21 @@ def computeWordFrequencies(tokenList):
 
     return myDict
 
+# Just for testing locally
 if __name__ == '__main__':
-
-    samplePath = getInput()
-    tokens = tokenize(samplePath)
-    frequencies = computeWordFrequencies(tokens)
-    shouldBeSorted = print(frequencies)
+    samplehtml = """
+    sample_html = 
+    <html>
+        <head><title>UCI Computer Science</title></head>
+        <body>
+            <h1>Research Areas</h1>
+            <p>UCI focuses on computing and data science.</p>
+            <b>Machine Learning</b> is a core field.
+        </body>
+    </html>
+    """
+    tokens = tokenize_html(samplehtml)
+    print("Weighted tokens:\n")
+    for t, freq in list(tokens.items())[:15]:
+        print(f"{t}: {freq}")
+    #shouldBeSorted = print(frequencies)
