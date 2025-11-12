@@ -1,63 +1,66 @@
-from tokenizer import tokenize, computeWordFrequencies
-from unzip import unzipper
 from file_items import FileItem
+from tokenizer import tokenize_html  # use the new HTML tokenizer
 import os
 import json
 
 def read_zip_contents():
-    directory_dict = {}
+    # Returns the path to the folder containing extracted JSON files.
+    return "raw/DEV"  
 
-    unzipper('path_name') # may need to replace path name
-    base_folder = "raw"
-
-    for root, dirs, files in os.walk(base_folder):
-        if root == base_folder:
-            continue
-
-        site_name = os.path.basename(root)
-        directory_dict[site_name] = []
-
-        for file_name in files:
-            if file_name.endswith('.json'):
-                directory_dict[site_name].append(os.path.join(root, file_name)) # store paths to json file
-        
-    return directory_dict
 
 def inverted_index():
-    index = {} 
-    doc_ids = {} # map integer number to site URL
-    doc_id_key = 0 
-    unique_tokens = 0 
-    num_indexed = 0 # number of indexed documents
+    index = {}            # term -> list of (doc_id, freq)
+    doc_ids = {}          # doc_id -> URL
+    doc_id_key = 0
+    num_indexed = 0
+    unique_tokens = 0
 
-    directory_dict = read_zip_contents()
-    #  print(directory_dict)
+    folder_path = read_zip_contents()
 
-    for site, file_paths in directory_dict.items():
-        for file_path in file_paths:
+    # Walk through all subdirectories and JSON files
+    for root, _, files in os.walk(folder_path):
+        for file_name in files:
+            if not file_name.endswith(".json"):
+                continue
+
+            file_path = os.path.join(root, file_name)
             file_item = FileItem(file_path)
+
+            # Skip if invalid or empty
+            if not file_item.content.strip():
+                continue
+
             num_indexed += 1
-            # map document URL to an integer
             doc_id = doc_id_key
             doc_ids[doc_id] = file_item.url
             doc_id_key += 1
-            # load JSON content to tokenize
-            text = file_item.parse_contents()
-            tokens = tokenize(text)
-    
-            token_freq_dict = computeWordFrequencies(tokens)
-            for token, freq in token_freq_dict.items():
-                # check for unique tokens
-                # increase unique_tokens counter and add token to index
+
+            # Tokenize + weight + stem using tokenizer.py
+            token_freqs = file_item.parse_contents()
+
+            # Build inverted index
+            for token, freq in token_freqs.items():
                 if token not in index:
-                    index[token] = [] # use lists instead of sets to maintain order
+                    index[token] = []
                     unique_tokens += 1
                 index[token].append((doc_id, freq))
-    return index
 
-if __name__ == "__main__":
-    index = inverted_index()
-    
-    with open("inverted_index.txt", "w", encoding="utf-8") as f:
+    # Write to disk
+    os.makedirs("index", exist_ok=True)
+    with open("index/inverted_index.txt", "w", encoding="utf-8") as f:
         for token, postings in index.items():
             f.write(f"{token}: {postings}\n")
+
+    # Save doc mapping for future search use
+    with open("index/doc_ids.json", "w", encoding="utf-8") as f:
+        json.dump(doc_ids, f)
+
+    print(f"Indexed {num_indexed} documents.")
+    print(f"Unique tokens: {unique_tokens}")
+    print(f"Index written to index/inverted_index.txt")
+
+    return index
+
+
+if __name__ == "__main__":
+    inverted_index()
