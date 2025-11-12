@@ -14,7 +14,7 @@ Note: my .gitignore includes `analyst.zip` and `developer.zip` because we alread
 
 ## TODO: 
 
-`file_items.py`: 
-`def parse_contents` needs writing
+`file_items.py`:  Testing 
+`def parse_contents`: Testing
 
-`tokenizer.py`: needs to be rewritten for this project
+`tokenizer.py`: Updated by Max - included html + weights support
