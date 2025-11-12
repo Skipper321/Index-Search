@@ -152,6 +152,7 @@ def computeWordFrequencies(tokenList):
     return myDict
 
 if __name__ == '__main__':
+
     samplePath = getInput()
     tokens = tokenize(samplePath)
     frequencies = computeWordFrequencies(tokens)
