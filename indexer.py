@@ -7,7 +7,7 @@ import json
 def read_zip_contents():
     directory_dict = {}
 
-    unzipper('/Users/alohamylola/Desktop/analyst.zip') # may need to replace path name
+    unzipper('path_name') # may need to replace path name
     base_folder = "raw"
 
     for root, dirs, files in os.walk(base_folder):
