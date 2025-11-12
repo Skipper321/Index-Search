@@ -111,7 +111,7 @@ def getSlicedWords(bigWord:string, firstSplit = -1):
 def tokenize(input_data: str):
     tokens = []
 
-    if os.path.exists(input_data):
+    if os.path.isfile(input_data):
         with open(input_data, 'r', encoding='utf8') as f:
             raw_list = f.readlines()
     else:
