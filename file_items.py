@@ -5,7 +5,12 @@ warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 warnings.filterwarnings("ignore", category=MarkupResemblesLocatorWarning)
 
 import json
+import re
+import tokenizer
 from bs4 import BeautifulSoup
+from nltk.stem import PorterStemmer
+
+
 
 
 class FileItem:
@@ -52,19 +57,15 @@ class FileItem:
     def parse_contents(self):
         # TODO: A method that parses the contents of the fileItem
         # because we only have the raw HTML
-        
+        if not self.content.strip():
+            return {}
         # check the type of content
         if self.content.strip().startswith("BEGIN:VCALENDAR"):
             # calendar content, return as is
             return self.content
-        else:
-            # otherwise, HTML doc
-            soup = BeautifulSoup(self.content, "html.parser")  # use HTML parser
-            # remove scripts and styles
-            for script_or_style in soup(["script", "style"]):
-                script_or_style.decompose()
-            text = soup.get_text(separator=" ", strip=True)
-            return text
+        return tokenizer.tokenize_html(self.content)
+
+        
 
 # if __name__ == "__main__":
 #     default_test = "raw\\ANALYST\\www-db_ics_uci_edu\\16c4d46a219e4961a76bb1e1bc7b5cd2d812c3ec2580baf91f0a4ad89cc0d208.json"
