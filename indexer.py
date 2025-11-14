@@ -61,6 +61,20 @@ def inverted_index():
 
     return index
 
+def get_index_size():
+    # Sum of all the files in the index folder
+    total_size = 0
+    index_folder = "index"
+
+    for file_name in os.listdir(index_folder):
+        file_path = os.path.join(index_folder, file_name)
+        if os.path.isfile(file_path):
+            total_size += os.path.getsize(file_path)  # size in bytes
+    total_size_kb = total_size / 1024 # convert bytes to KB
+    print(f"Total size of index on disk: {total_size_kb:.2f} KB") 
+    return total_size_kb
+
 
 if __name__ == "__main__":
     inverted_index()
+    get_index_size()
