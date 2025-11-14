@@ -8,7 +8,8 @@ import re
 from nltk.stem import PorterStemmer
 from bs4 import BeautifulSoup
 stemmer = PorterStemmer()
-
+stem_cache = {}
+TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 
 # sort dictionary by key instead 
 # returns a list
@@ -138,27 +139,39 @@ def tokenize(input_data: str):
 def tokenize_html(html: str):
     #Tokenizes HTML content and applies weighting for title, headings, and bold text.
     #Returns a dict of stemmed tokens -> weighted term frequency.
-    soup = BeautifulSoup(html, "lxml")
+    soup = BeautifulSoup(html, "html.parser")
     weights = {"title": 3.0, "h1": 2.5, "h2": 2.0, "h3": 1.5, "b": 1.25, "strong": 1.25}
-    token_freqs = {}
 
     # Remove scripts, styles, nav, etc.
     for tag in soup(["script", "style", "noscript", "footer", "header", "nav"]):
         tag.extract()
+    
+    token_freqs = {}
 
     # Weighted sections
     for tag_name, weight in weights.items():
         for tag in soup.find_all(tag_name):
             text = tag.get_text(separator=" ", strip=True)
-            tokens = tokenize(text)
+            tokens = TOKEN_RE.findall(text.lower())
+
             for t in tokens:
+                # use cache 
+                if t not in stem_cache:
+                    stem_cache[t] = stemmer.stem(t)
+                stem = stem_cache[t]
+
                 token_freqs[t] = token_freqs.get(t, 0) + weight
 
     # Regular body text (weight 1.0)
     body_text = soup.get_text(separator=" ", strip=True)
-    body_tokens = tokenize(body_text)
+    body_tokens = TOKEN_RE.findall(body_text.lower())
+
     for t in body_tokens:
-        token_freqs[t] = token_freqs.get(t, 0) + 1.0
+        if t not in stem_cache:
+            stem_cache[t] = stemmer.stem(t)
+        stem = stem_cache[t] 
+
+        token_freqs[stem] = token_freqs.get(stem, 0) + 1.0
 
     return token_freqs
 
