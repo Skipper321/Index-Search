@@ -10,9 +10,6 @@ import tokenizer
 from bs4 import BeautifulSoup
 from nltk.stem import PorterStemmer
 
-
-
-
 class FileItem:
 # FileItem: Allows for each file to be treated as an object
 # for example, in raw/analyst/www_cs_uci_edu, 
@@ -35,7 +32,7 @@ class FileItem:
                 data = file.read().strip()
 
             if not data:
-                print(f"Warning: {self.filename} is empty")
+                # print(f"Warning: {self.filename} is empty")
                 self.url = ""
                 self.content = ""
                 self.encoding = ""
@@ -49,7 +46,7 @@ class FileItem:
             self.encoding = parsed_data['encoding']
 
         except json.JSONDecodeError:
-            print(f"Warning: {self.filename} is not valid JSON, skipping.")
+            # print(f"Warning: {self.filename} is not valid JSON, skipping.")
             self.url = ""
             self.content = ""
             self.encoding = ""
@@ -59,11 +56,23 @@ class FileItem:
         # because we only have the raw HTML
         if not self.content.strip():
             return {}
-        # check the type of content
-        if self.content.strip().startswith("BEGIN:VCALENDAR"):
+        # check the type of content - calendar based files
+        if self.content.strip().startswith("BEGIN:"):
             # calendar content, return as is
-            return self.content
-        return tokenizer.tokenize_html(self.content)
+            return {}
+        # If content larger than 250KB
+        if len(self.content) > 250_000:
+            return {}
+        
+        token_freqs = tokenizer.tokenize_html(self.content)
+
+        # Safety check: if tokenize_html accidentally returned a string
+        if isinstance(token_freqs, str):
+            # something is wrong — return empty dict so indexer doesn't crash
+            # print("Token_freq is a string, not a dict...")
+            return {}
+
+        return token_freqs
 
         
 
