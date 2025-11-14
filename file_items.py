@@ -65,7 +65,7 @@ class FileItem:
 
         token_freqs = tokenizer.tokenize_html(self.content)
 
-        #Safety check: if tokenize_html accidentally returned a string
+        # Safety check: if tokenize_html accidentally returned a string
         if isinstance(token_freqs, str):
             # something is wrong - return empty dict so indexer doesn't crash
             print("Token_freq is a string, not a dict...")
