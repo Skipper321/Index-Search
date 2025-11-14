@@ -60,10 +60,19 @@ class FileItem:
         if not self.content.strip():
             return {}
         # check the type of content
-        if self.content.strip().startswith("BEGIN:VCALENDAR"):
-            # calendar content, return as is
-            return self.content
-        return tokenizer.tokenize_html(self.content)
+        if self.content.strip().startswith("BEGIN:"):
+            return {}
+
+        token_freqs = tokenizer.tokenize_html(self.content)
+
+        #Safety check: if tokenize_html accidentally returned a string
+        if isinstance(token_freqs, str):
+            # something is wrong - return empty dict so indexer doesn't crash
+            print("Token_freq is a string, not a dict...")
+            return {}
+        
+        return token_freqs
+
 
         
 
