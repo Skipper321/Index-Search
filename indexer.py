@@ -111,5 +111,3 @@ if __name__ == "__main__":
     size_kb = os.path.getsize("final_index.json") / 1024
     print(f"Index size on disk: {size_kb:.2f} KB")
 
-# 9:36 am start 
-# 10:2

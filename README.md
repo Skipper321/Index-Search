@@ -18,3 +18,13 @@ Note: my .gitignore includes `analyst.zip` and `developer.zip` because we alread
 `def parse_contents`: Testing
 
 `tokenizer.py`: Updated by Max - included html + weights support
+
+
+## How to run
+
+### Installations required
+`python -pip install nltk`
+`python -m pip install lxml`
+
+### Running the installer
+`python indexer.py`
