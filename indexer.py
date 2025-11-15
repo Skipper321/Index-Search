@@ -3,78 +3,111 @@ from tokenizer import tokenize_html  # use the new HTML tokenizer
 import os
 import json
 
-def read_zip_contents():
-    # Returns the path to the folder containing extracted JSON files.
-    return "raw/DEV"  
+BATCH_SIZE = 2000 # partial index every 2000 documents
+RAW_DIR = "raw/DEV"
+
+# Write partial index to disk 
+def write_partial_index(index, batch):
+    path = f"index_part_{batch}.json"
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(index, f)
+    print(f"[INFO] Wrote partial index: {path} ({len(index)} tokens)")
+
+# Merge all partial index json files into one final index 
+def merge_indexes():
+    final_index = {}
+
+    parts = [f for f in os.listdir() if f.startswith("index_part_")]
+    parts.sort()
+
+    print("[INFO] Merging partial indexes...")
+
+    for p in parts: 
+        with open(p, "r", encoding="utf-8") as f:
+            chunk = json.load(f)
+
+        for token, postings in chunk.items():
+            if token not in final_index:
+                final_index[token] = postings
+            else:
+                final_index[token].extend(postings)
+
+    # sorting postings by doc_id for neatness
+    for tok in final_index:
+        final_index[tok].sort(key=lambda x: x[0])
+
+    return final_index
 
 
 def inverted_index():
     index = {}            # term -> list of (doc_id, freq)
     doc_ids = {}          # doc_id -> URL
-    doc_id_key = 0
-    num_indexed = 0
-    unique_tokens = 0
-
-    folder_path = read_zip_contents()
+    doc_id = 0
+    
+    batch_number = 0
+    processed_docs = 0
 
     # Walk through all subdirectories and JSON files
-    for root, _, files in os.walk(folder_path):
+    for root, _, files in os.walk(RAW_DIR):
         for file_name in files:
             if not file_name.endswith(".json"):
                 continue
 
             file_path = os.path.join(root, file_name)
             file_item = FileItem(file_path)
-
-            # Skip if invalid or empty
-            if not file_item.content.strip():
-                continue
-
-            num_indexed += 1
-            doc_id = doc_id_key
-            doc_ids[doc_id] = file_item.url
-            doc_id_key += 1
-
-            # Tokenize + weight + stem using tokenizer.py
             token_freqs = file_item.parse_contents()
 
-            # Build inverted index
+            # Skip if invalid or empty
+            if not isinstance(token_freqs, dict) or len(token_freqs) == 0:
+                continue
+
+            # Assign doc ID
+            doc_ids[doc_id] = file_item.url
+            processed_docs += 1
+
+            # Build inverted index - using list for easy JSON
             for token, freq in token_freqs.items():
                 if token not in index:
                     index[token] = []
-                    unique_tokens += 1
                 index[token].append((doc_id, freq))
 
-    # Write to disk
-    os.makedirs("index", exist_ok=True)
-    with open("index/inverted_index.txt", "w", encoding="utf-8") as f:
-        for token, postings in index.items():
-            f.write(f"{token}: {postings}\n")
+            doc_id += 1
 
-    # Save doc mapping for future search use
-    with open("index/doc_ids.json", "w", encoding="utf-8") as f:
+            # batch flush
+            if processed_docs % BATCH_SIZE == 0: 
+                write_partial_index(index, batch_number)
+                index.clear()
+                batch_number += 1
+
+                print(f"[INFO] Processed {processed_docs} documents...")
+
+    # write final partial
+    write_partial_index(index, batch_number)
+
+    # write doc-id map
+    with open("doc_ids.json", "w", encoding="utf-8") as f:
         json.dump(doc_ids, f)
+    
+    print("[INFO] ALL partial indexes written.")
+    print("[INFO] Merging into final index...")
 
-    print(f"Indexed {num_indexed} documents.")
-    print(f"Unique tokens: {unique_tokens}")
-    print(f"Index written to index/inverted_index.txt")
+    final_index = merge_indexes()
 
-    return index
+    # write final index
+    with open("final_index.json", "w", encoding="utf-8") as f:
+        json.dump(final_index, f)
 
-def get_index_size():
-    # Sum of all the files in the index folder
-    total_size = 0
-    index_folder = "index"
+    print("[INFO] Final index written.")
 
-    for file_name in os.listdir(index_folder):
-        file_path = os.path.join(index_folder, file_name)
-        if os.path.isfile(file_path):
-            total_size += os.path.getsize(file_path)  # size in bytes
-    total_size_kb = total_size / 1024 # convert bytes to KB
-    print(f"Total size of index on disk: {total_size_kb:.2f} KB") 
-    return total_size_kb
-
+    return processed_docs, len(final_index)
 
 if __name__ == "__main__":
-    inverted_index()
-    get_index_size()
+    num_docs, unique_tokens = inverted_index()
+
+    print("\n===== INDEX STATISTICS =====")
+    print(f"Indexed {num_docs} documents.")
+    print(f"Unique tokens: {unique_tokens}")
+
+    size_kb = os.path.getsize("final_index.json") / 1024
+    print(f"Index size on disk: {size_kb:.2f} KB")
+
