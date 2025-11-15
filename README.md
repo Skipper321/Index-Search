@@ -1,8 +1,8 @@
 # cs121-projects
 A repository for CS121 A3: 
-Max maxwels@uci.edu
-Lola lolak@uci.edu
-Julie minhab@uci.edu
+- Max maxwels@uci.edu
+- Lola lolak@uci.edu
+- Julie minhab@uci.edu
 
 Inputs: 
 - Developer.zip: A large amount of webpages
