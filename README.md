@@ -1,8 +1,21 @@
 # cs121-projects
-A repository for CS121 projects
+A repository for CS121 A3: 
+Max maxwels@uci.edu
+Lola lolak@uci.edu
+Julie minhab@uci.edu
 
-## General notes
-From Julie minhab@uci.edu
+Inputs: 
+- Developer.zip: A large amount of webpages
+
+Outputs:
+- final.json of all unqiue tokens and summary statistics.
+
+Link to report: 
+https://docs.google.com/document/d/1cZwJC8PhzzUrJywTjfjHYW5TceV56hibrpc7OzomDg4/edit?usp=sharing
+
+
+## Indexer - General notes
+From 
 
 `tokenizer.py` - this is copied from previous files
 
@@ -12,12 +25,12 @@ From Julie minhab@uci.edu
 
 Note: my .gitignore includes `analyst.zip` and `developer.zip` because we already have access to these files. Github won't let me unzip 1000+ changes from the folder when you unzip so you'll have to run the command yourself.
 
-## TODO: 
+## Completed Items
 
-`file_items.py`:  Testing 
-`def parse_contents`: Testing
-
-`tokenizer.py`: Updated by Max - included html + weights support
+'indexer.py': Functional
+`file_items.py`:  Functional
+`def parse_contents`: Functional
+`tokenizer.py`: Functional: 
 
 
 ## How to run
@@ -25,6 +38,8 @@ Note: my .gitignore includes `analyst.zip` and `developer.zip` because we alread
 ### Installations required
 `python -pip install nltk`
 `python -m pip install lxml`
+'python pip install bs4'
 
 ### Running the installer
+'python -u unzip.py' 
 `python indexer.py`
