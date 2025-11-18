@@ -48,25 +48,48 @@ class SearchEngine:
     # Searches for the phrase positionally
     # 
     # Takes positional indices from a dictionary
-    # Returns search terms merged, ensuring proximity
+    # Returns a common dictionary
     def searchAllTerms(self, query, index_path=""):
-        results = {}
-
         query_tokens = tokenizer.tokenize(query)
-        firstResult = {}
-        nextToEachOther = {}
+        common = {}
 
-        for i in range(0, length(query_tokens)):
-            if (i == 1):
-                firstResult = self.searchOne(query_tokens[i], index_path)
-            else:
-                result = self.searchOne(query_tokens[i], index_path)
-            
-            
+        # `common` - Represents all locations of search terms that show up in the same place
+        # key = location
 
-        # TODO: need doing... what do we want to do here?
+        # value = list of weights
+        # position of list = weight of query term
 
-        return results
+        # for example, query = "john steinbeck" 
+        # "john" -> [3, 1.3]
+        # "steinbeck" -> [3, 4.2] [6, 7.2]
+        # common = {3, [1.3, 4.2]}
+        # query[0] = "john", common[3][0] = 1.3 (weight of "john")
+
+                    
+        return common 
+
+    def printCommon(self, query, index_path):
+        print("Searched for ", query, " within file ", index_path)
+        print(self.searchAllTerms(query, index_path))
+    
+
+    # Takes two dictionaries and merges it
+    # Keys = docid
+    # Values = weights
+    # Position for values = position of word in query
+    # Values are in a list
+    def getCommon(dict1, dict2):
+        merged = {}
+
+        d1 = set(dict1)
+        d2 = set(dict2)
+
+        common_keys = d1.intersection(d2)
+
+        for key in common_keys:
+            merged[key] = [dict1[key], dict2[key]]
+
+        return merged
     
     def results(self):
         return self.results
@@ -80,7 +103,7 @@ if __name__ == "__main__":
         "master of software engineering"]
 
     # NOTE: sorry I haven't used this yet because i literally didn't get the results yet so i'm only really able to search within index_part_0.json
-    # default_path = "index_final.json" 
+    final_index = "final_index.json" 
     default_path = "index/index_part_0.json"
     
     # TODO: need to change this for the actual engine
@@ -88,3 +111,4 @@ if __name__ == "__main__":
 
     sg = SearchEngine(default_path)
     sg.searchOne("artificial")
+    sg.printCommon("machine learning", final_index)
