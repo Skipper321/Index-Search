@@ -1,7 +1,6 @@
 from file_items import FileItem
 from tokenizer import tokenize_html  # use the new HTML tokenizer
-import os
-import json
+import os, json, struct, csv
 
 BATCH_SIZE = 2000 # partial index every 2000 documents
 RAW_DIR = "raw/DEV"
@@ -99,7 +98,50 @@ def inverted_index():
 
     print("[INFO] Final index written.")
 
+    # ---------------------------------------------------------
+    # WRITE BINARY INDEX FOR SEARCH (Developer Route requirement)
+    # ---------------------------------------------------------
+    print("[INFO] Writing binary index files...")
+
+    os.makedirs("index", exist_ok=True)
+
+    final_index = final_index   # already built above
+
+    postings_path = "index/postings.bin"
+    dict_rows = []
+    offset = 0
+
+    # 1) Write postings.bin
+    with open(postings_path, "wb") as pbin:
+        for term in sorted(final_index.keys()):
+            plist = final_index[term]   # list[(doc_id, tf)]
+            df = len(plist)
+            start = offset
+
+            for doc_id, tf in plist:
+                pbin.write(struct.pack("<if", doc_id, tf))  # int32, float32
+                offset += 8
+
+            length = offset - start
+            dict_rows.append((term, df, start, length))
+
+    # 2) Write dictionary.csv
+    with open("index/dictionary.csv", "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["term", "df", "offset", "length"])
+        w.writerows(dict_rows)
+
+    # 3) Write doc_ids.json (already created above)
+    # rewrite or leave as-is
+
+    # 4) Write corpus size meta
+    with open("index/corpus_meta.json", "w", encoding="utf-8") as f:
+        json.dump({"N": len(doc_ids)}, f)
+
+    print("[INFO] Binary postings index written successfully.")
+
     return processed_docs, len(final_index)
+
 
 if __name__ == "__main__":
     num_docs, unique_tokens = inverted_index()
@@ -111,3 +153,5 @@ if __name__ == "__main__":
     size_kb = os.path.getsize("final_index.json") / 1024
     print(f"Index size on disk: {size_kb:.2f} KB")
 
+# 10:54 am start
+# 11:02 am end
