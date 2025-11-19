@@ -41,5 +41,8 @@ Note: my .gitignore includes `analyst.zip` and `developer.zip` because we alread
 'python pip install bs4'
 
 ### Running the installer
-'python -u unzip.py' 
+`python -u unzip.py`
 `python indexer.py`
+
+### Running the query
+`python search.py`
