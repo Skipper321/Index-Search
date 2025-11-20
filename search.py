@@ -104,23 +104,84 @@ class SearchEngine:
         results = [(self.doc_ids[str(doc)], score) for doc, score in top]
         return results
 
-    # We don't need full phrase search or commons
-    # def searchAllterms(self, query): 
-
     def printResults(self, results):
         if not results:
             return 
         
         for i, (url, score) in enumerate(results, start=1):
             print(f"{i}.{url} (score={score:.4f})")
+    
+    # Boolean helper function to parse and identify the boolean type
+    def parse_query_boolean(self, q):
+        tokens = q.upper().split()
+
+        if "AND" in tokens:
+            op = "AND"
+        elif "OR" in tokens:
+            op = "OR"
+        elif "NOT" in tokens:
+            op = "NOT"
+        else:
+            op = "NONE"
+        
+        return op
+    
+    # Boolean operators configured to work with documents
+    def boolean_and(self, left, right):
+        # left / right are lists of [url, score]
+        left_dict = {url:score for url, score in left}
+        right_dict = {url:score for url, score in right}
+        common = left_dict.keys() & right_dict.keys()
+        return [(u, left_dict[u] + right_dict[u]) for u in common]
+
+    def boolean_or(self, left, right):
+        combined = {}
+        for url, score in left:
+            combined[url] = max(score, combined.get(url, 0))
+        for url, score in right:
+            combined[url] = max(score, combined.get(url, 0))
+        return [(u, combined[u]) for u in combined]
+
+    def boolean_not(self, left, right):
+        right_urls = {u for u, _ in right}
+        return [(u, score) for u, score in left if u not in right_urls]
+    
 
 
 if __name__ == "__main__":
     # Testings sample queries 
     engine = SearchEngine()
-    print("--- Sample Queries ---")
-    for q in ["machine learning", "cristina lopes", "ACM", "undergraduate research"]:
-        print("\nQuery:", q)
-        res = engine.searchFor(q)
-        engine.printResults(res)
+    
+    print("Simple Boolean Query Search Engine - Developer:")
+    print("Supports boolean operations 'AND', 'OR', 'NOT'")
+    print("Input a search term, or type '/quit' to exit.")
+
+    while True:
+        query = input("Search > ").strip()
+
+        # Quit statement 
+        if query.lower() == "/quit":
+            break
+
+        print(query)
+        
+        op = engine.parse_query_boolean(query)
+        
+        if op is not None and op == "AND":
+            left, right = [s.strip() for s in query.upper().split("AND")]
+            results = engine.boolean_and(engine.searchFor(left), engine.searchFor(right))
+        elif op == "OR":
+            left, right = [s.strip() for s in query.upper().split("OR")]
+            results = engine.boolean_or(engine.searchFor(left), engine.searchFor(right))
+        elif op == "NOT":
+            left, right = [s.strip() for s in query.upper().split("NOT")]
+            results = engine.boolean_not(engine.searchFor(left), engine.searchFor(right))
+        elif op == "NONE":
+            results = engine.searchFor(query)
+    
+        engine.printResults(results)
+
+    #print("--- Sample Queries ---")
+    #for q in ["machine learning", "cristina lopes", "ACM", "undergraduate research", "Masters of software engineering"]:
+        #print("\nQuery:", q)
     
