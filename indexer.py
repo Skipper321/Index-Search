@@ -1,7 +1,7 @@
 from file_items import FileItem
 from tokenizer import tokenize_html  # use the new HTML tokenizer
-import os
-import json
+import os, json, struct, csv
+import math # support cosine normalization - account for TF-IDF flaws with longer documents
 
 BATCH_SIZE = 2000 # partial index every 2000 documents
 RAW_DIR = "raw/DEV"
@@ -55,10 +55,17 @@ def inverted_index():
 
             file_path = os.path.join(root, file_name)
             file_item = FileItem(file_path)
-            token_freqs = file_item.parse_contents()
+            
+            parsed = file_item.parse_contents() # returns dict: "tf": {...}
 
             # Skip if invalid or empty
-            if not isinstance(token_freqs, dict) or len(token_freqs) == 0:
+            if not isinstance(parsed, dict) or "tf" not in parsed or "positions" not in parsed:
+                continue
+
+            tf_dict = parsed["tf"]
+            pos_dict = parsed["positions"]
+
+            if len(tf_dict) == 0:
                 continue
 
             # Assign doc ID
@@ -66,14 +73,19 @@ def inverted_index():
             processed_docs += 1
 
             # Build inverted index - using list for easy JSON
-            for token, freq in token_freqs.items():
+            for token in tf_dict:
+                tf = tf_dict[token]
+                positions = [p for (p, w) in pos_dict[token]]
+
                 if token not in index:
                     index[token] = []
-                index[token].append((doc_id, freq))
+                
+                # Postings entry ex: ((doc_id, tf, position))
+                index[token].append((doc_id, tf, positions))
 
             doc_id += 1
 
-            # batch flush
+            # batch flush if limit reached 
             if processed_docs % BATCH_SIZE == 0: 
                 write_partial_index(index, batch_number)
                 index.clear()
@@ -93,15 +105,83 @@ def inverted_index():
 
     final_index = merge_indexes()
 
-    # write final index
+
+    # Compute Cosine Normalization 
+    print("[INFO] Compute document cosine normalization...")
+
+    doc_norms = {int(doc_id): 0.0 for doc_id in doc_ids}
+
+    for term, postings in final_index.items():
+        for (doc_id, tf, pos_list) in postings:
+            w_tf = 1 + math.log(max(tf, 1e-6)) # Log-weighted term frequency
+            doc_norms[doc_id] += (w_tf * w_tf) # accumulate squared weights
+    
+    # Finalize normalizations 
+    for doc_id in doc_norms:
+        doc_norms[doc_id] = math.sqrt(doc_norms[doc_id])
+
+    # Save to disk
+    with open("index/doc_norms.json", "w", encoding="utf-8") as f:
+        json.dump(doc_norms, f)
+
+    # write final index 
     with open("final_index.json", "w", encoding="utf-8") as f:
         json.dump(final_index, f)
 
-    print("[INFO] Final index written.")
+    print("[INFO] Final index written with cosine normalization.")
+
+    # WRITE BINARY INDEX FOR SEARCH (Developer Route requirement)
+    print("[INFO] Writing binary postings...")
+
+    os.makedirs("index", exist_ok=True)
+
+    postings_path = "index/postings.bin"
+    dict_rows = []
+    offset = 0
+
+    # 1) Write postings.bin
+    with open(postings_path, "wb") as pbin:
+        for term in sorted(final_index.keys()):
+            plist = final_index[term]   # list[(doc_id, tf, positions)]
+            df = len(plist)
+            start = offset
+
+            for (doc_id, tf, positions) in plist:
+                pbin.write(struct.pack("<if", doc_id, tf))  # int32, float32
+                offset += 8
+
+                # number of positions
+                pbin.write(struct.pack("<i", len(positions)))
+                offset += 4
+
+                # positions themselves
+                for p in positions:
+                    pbin.write(struct.pack("<i", p))
+                    offset += 4
+
+            length = offset - start
+            dict_rows.append((term, df, start, length))
+
+    # 2) Write dictionary.csv
+    with open("index/dictionary.csv", "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["term", "df", "offset", "length"])
+        w.writerows(dict_rows)
+
+    # 3) Write doc_ids.json (already created above)
+    # rewrite or leave as-is
+
+    # 4) Write corpus size meta
+    with open("index/corpus_meta.json", "w", encoding="utf-8") as f:
+        json.dump({"N": len(doc_ids)}, f)
+
+    print("[INFO] Binary postings index written successfully.")
 
     return processed_docs, len(final_index)
 
+
 if __name__ == "__main__":
+
     num_docs, unique_tokens = inverted_index()
 
     print("\n===== INDEX STATISTICS =====")
@@ -111,3 +191,5 @@ if __name__ == "__main__":
     size_kb = os.path.getsize("final_index.json") / 1024
     print(f"Index size on disk: {size_kb:.2f} KB")
 
+# 7:00 pm start
+# 7:15 pm end
