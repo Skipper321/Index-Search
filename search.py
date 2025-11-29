@@ -9,6 +9,7 @@ from collections import defaultdict
 class SearchEngine:
 
     def __init__(self):
+    
         # Load dictionary into memory (small)
         with open("index/dictionary.csv", "r", encoding="utf-8") as f:
             rdr = csv.DictReader(f)
@@ -24,10 +25,16 @@ class SearchEngine:
             meta = json.load(f)
         self.N = int(meta["N"])
 
+        # Load doc norms for cosine normalization 
+        with open("index/doc_norms.json", "r", encoding="utf-8") as f:
+            self.doc_norms = { int(k): float(v) for k, v in json.load(f).items()}
+
+
         self.postings_path = "index/postings.bin"
 
         print(f"[INFO] Loaded dictionary with {len(self.dictionary)} terms.")
         print(f"[INFO] Ready to search {self.N} documents.")
+        print(f"[INFO] Loaded doc normalizations")
 
 
     def read_postings(self, term):
@@ -42,37 +49,51 @@ class SearchEngine:
             f.seek(offset)
             block = f.read(length)
 
-        # Decode each (doc_id:int32, tf:float32)
-        for i in range(0, length, 8):
-            doc_id, tf = struct.unpack_from("<if", block, i)
-            postings.append((doc_id, tf))
+        ptr = 0
+
+        while ptr < length:
+            doc_id, tf = struct.unpack_from("<if", block, ptr)
+            ptr += 8
+
+            pos_count = struct.unpack_from("<i", block, ptr)[0]
+            ptr += 4
+
+            positions = []
+            for _ in range(pos_count):
+                p = struct.unpack_from("<i", block, ptr)[0]
+                positions.append(p)
+                ptr += 4
+            postings.append((doc_id, tf, positions))
 
         return postings
     
     # TF-IDF weighting
     def idf(self, df):
         return math.log((self.N + 1) / (df + 0.5)) + 1.0
+    
+    # Phrase match helper - returns set of doc_ids where EXACT phrase occurs
+    def phrase_match(self, termA, termB):
+        postA = self.read_postings(termA)
+        postB = self.read_postings(termB)
 
+        matches = set()
 
-    # Searches for one term at a time
-    # Takes tokenized search query
-    # Returns positional indices for each search as a dictionary
-    def searchOne(self, term):
-        term = tokenizer.tokenize(term)
-        if len(term) == 0:
-            return {}
-        
-        t = term[0] # tokenize returns a list 
-        if t not in self.dictionary:
-            print(f"[INFO] '{t}' not found.")
-            return {}
-        
-        df, offset, length = self.dictionary[t]
-        postings = self.read_postings(t)
+        dictA = {doc: posA for (doc, _, posA) in postA}
+        dictB = {doc: posB for (doc, _, posB) in postB}
 
-        docid_weight = {doc_id: tf for doc_id, tf in postings}
-        print(f"[INFO] searchOne('{term}') yielded >>> {len(docid_weight)} results")
-        return docid_weight
+        common_docs = dictA.keys() & dictB.keys()
+
+        for d in common_docs:
+            positionsA = dictA[d]
+            positionsB = set(dictB[d])
+
+            # phrase: B must be immediately after A
+            for p in positionsA:
+                if (p+1) in positionsB:
+                    matches.add(d)
+                    break
+
+        return matches
 
     # Searches for multiple terms with TF-IDF scoring
     def searchFor(self, query, top_k=10):
@@ -80,8 +101,16 @@ class SearchEngine:
         if not q_terms:
             return []
         
+        # Detect phrase search: 2 terms, enclosed with quotes 
+        normalized_query = query.strip().lower()
+        phrase_mode = (normalized_query.startswith('"') and normalized_query.endswith('"') 
+                       and len(q_terms) == 2)
+    
+
         scores = defaultdict(float)
 
+        # Basic TF-IDF accumulation
+        postings_cache = {}
         for t in q_terms:
             if t not in self.dictionary:
                 continue
@@ -90,14 +119,28 @@ class SearchEngine:
             idf_weight = self.idf(df)
 
             postings = self.read_postings(t)
-            for doc_id, tf in postings:
+            postings_cache[t] = postings
+
+            for (doc_id, tf, positions) in postings:
                 tfw = 1 + math.log(max(tf,1e-6))
                 scores[doc_id] += tfw * idf_weight
+
+        # apply phrase constraint if needed
+        if phrase_mode:
+            t1, t2 = q_terms
+            phrase_docs = self.phrase_match(t1, t2)
+
+            # only keep phrase-matching docs
+            scores = {d: scores[d] * 2.0 for d in phrase_docs} # boosting phrase matches
 
         if not scores:
             return []
         
-        # top-k 
+        # Implemented Cosine Normalization - M3 
+        for doc_id in list(scores.keys()):
+            scores[doc_id] /= self.doc_norms[doc_id]
+        
+        # select top-k highest scores 
         top = heapq.nlargest(top_k, scores.items(), key=lambda x: x[1])
 
         # convert doc_id >>> url 
@@ -154,7 +197,9 @@ if __name__ == "__main__":
     
     print("Simple Boolean Query Search Engine - Developer:")
     print("Supports boolean operations 'AND', 'OR', 'NOT'")
-    print("Input a search term, or type '/quit' to exit.")
+    print("Supports exact phrase searches, use double quotes for the 2 terms: ")
+    print("Exact Phrase examples: \"the document\", \"machine learning\"")
+    print("Input a search term(s), or type '/quit' to exit.")
 
     while True:
         query = input("Search > ").strip()
@@ -181,7 +226,4 @@ if __name__ == "__main__":
     
         engine.printResults(results)
 
-    #print("--- Sample Queries ---")
-    #for q in ["machine learning", "cristina lopes", "ACM", "undergraduate research", "Masters of software engineering"]:
-        #print("\nQuery:", q)
     

@@ -140,16 +140,18 @@ def tokenize_html(html: str):
     #Tokenizes HTML content and applies weighting for title, headings, and bold text.
     #Returns a dict of stemmed tokens -> weighted term frequency.
     soup = BeautifulSoup(html, "html.parser")
-    weights = {"title": 3.0, "h1": 2.5, "h2": 2.0, "h3": 1.5, "b": 1.25, "strong": 1.25}
+    weights = {"title": 3.0, "h1": 2.5, "h2": 2.0, "h3": 1.4, "b": 1.6, "strong": 1.6 }# Modified heading weights
 
     # Remove scripts, styles, nav, etc.
     for tag in soup(["script", "style", "noscript", "footer", "header", "nav"]):
         tag.extract()
-    
+
+    pos = 0 # global position counter
+    token_positions = {} # ex: {stem: [(pos, weight), ...]}
     token_freqs = {}
 
-    # Weighted sections
-    for tag_name, weight in weights.items():
+    # Handle Weighted sections/tags with positions
+    for tag_name, w in weights.items():
         for tag in soup.find_all(tag_name):
             text = tag.get_text(separator=" ", strip=True)
             tokens = TOKEN_RE.findall(text.lower())
@@ -160,9 +162,18 @@ def tokenize_html(html: str):
                     stem_cache[t] = stemmer.stem(t)
                 stem = stem_cache[t]
 
-                token_freqs[t] = token_freqs.get(t, 0) + weight
+                # Record token frequency
+                token_freqs[stem] = token_freqs.get(stem, 0) + w
 
-    # Regular body text (weight 1.0)
+                # Record stem position
+                if stem not in token_positions:
+                    token_positions[stem] = []
+                token_positions[stem].append((pos, w))
+
+                # Iterate to next position
+                pos += 1
+
+    # Handle Regular body text (weight 1.0)
     body_text = soup.get_text(separator=" ", strip=True)
     body_tokens = TOKEN_RE.findall(body_text.lower())
 
@@ -171,10 +182,21 @@ def tokenize_html(html: str):
             stem_cache[t] = stemmer.stem(t)
         stem = stem_cache[t] 
 
+        # Record token frequency
         token_freqs[stem] = token_freqs.get(stem, 0) + 1.0
 
-    return token_freqs
+        # Record stem position
+        if stem not in token_positions:
+            token_positions[stem] = []
+        token_positions[stem].append((pos, 1.0))
+        
+        # Iterate to next position
+        pos += 1
 
+    return {
+        "tf": token_freqs,
+        "positions": token_positions
+    }
 
 # gets word frequency
 def computeWordFrequencies(tokenList):
