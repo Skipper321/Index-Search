@@ -72,25 +72,34 @@ class SearchEngine:
         return math.log((self.N + 1) / (df + 0.5)) + 1.0
     
     # Phrase match helper - returns set of doc_ids where EXACT phrase occurs
-    def phrase_match(self, termA, termB):
-        postA = self.read_postings(termA)
-        postB = self.read_postings(termB)
+    def phrase_match(self, phrase_terms, cache=None):
+        if len(phrase_terms) < 2:
+            return set()
+        
+        postings_lists = []
+        for t in phrase_terms:
+            if cache and t in cache:
+                postings_lists.append(cache[t])
+            else:
+                postings_lists.append(self.read_postings(t))
+
+        postings_dicts = [{doc: set(pos) for doc, _, pos in postings} for postings in postings_lists]
+
+        common_docs = set(postings_dicts[0].keys())
+        for d in postings_dicts[1:]:
+            common_docs &= d.keys()
 
         matches = set()
-
-        dictA = {doc: posA for (doc, _, posA) in postA}
-        dictB = {doc: posB for (doc, _, posB) in postB}
-
-        common_docs = dictA.keys() & dictB.keys()
-
-        for d in common_docs:
-            positionsA = dictA[d]
-            positionsB = set(dictB[d])
-
-            # phrase: B must be immediately after A
-            for p in positionsA:
-                if (p+1) in positionsB:
-                    matches.add(d)
+        for doc in common_docs:
+            first_positions = postings_dicts[0][doc]
+            for start_pos in first_positions:
+                match = True
+                for i in range(1, len(phrase_terms)):
+                    if start_pos + i not in postings_dicts[i][doc]:
+                        match = False
+                        break
+                if match:
+                    matches.add(doc)
                     break
 
         return matches
@@ -100,50 +109,42 @@ class SearchEngine:
         q_terms = tokenizer.tokenize(query)
         if not q_terms:
             return []
-        
-        # Detect phrase search: 2 terms, enclosed with quotes 
-        normalized_query = query.strip().lower()
-        phrase_mode = (normalized_query.startswith('"') and normalized_query.endswith('"') 
-                       and len(q_terms) == 2)
-    
 
+        # Initialize scores and cache
         scores = defaultdict(float)
-
-        # Basic TF-IDF accumulation
         postings_cache = {}
+
+        # Read postings once and cache them
         for t in q_terms:
             if t not in self.dictionary:
                 continue
-
-            df, _, _ = self.dictionary[t]
-            idf_weight = self.idf(df)
-
             postings = self.read_postings(t)
             postings_cache[t] = postings
 
-            for (doc_id, tf, positions) in postings:
-                tfw = 1 + math.log(max(tf,1e-6))
+            # TF-IDF scoring
+            df, _, _ = self.dictionary[t]
+            idf_weight = self.idf(df)
+            for doc_id, tf, positions in postings:
+                tfw = 1 + math.log(max(tf, 1e-6))
                 scores[doc_id] += tfw * idf_weight
 
-        # apply phrase constraint if needed
-        if phrase_mode:
-            t1, t2 = q_terms
-            phrase_docs = self.phrase_match(t1, t2)
-
-            # only keep phrase-matching docs
-            scores = {d: scores[d] * 2.0 for d in phrase_docs} # boosting phrase matches
+        # Check for phrase search (any number of words in quotes)
+        normalized_query = query.strip().lower()
+        phrase_mode = normalized_query.startswith('"') and normalized_query.endswith('"')
+        if phrase_mode and len(q_terms) >= 2:
+            phrase_docs = self.phrase_match(q_terms, postings_cache)
+            # Only keep phrase-matching docs
+            scores = {d: scores[d] * 2.0 for d in phrase_docs}
 
         if not scores:
             return []
-        
-        # Implemented Cosine Normalization - M3 
+
+        # Cosine normalization
         for doc_id in list(scores.keys()):
             scores[doc_id] /= self.doc_norms[doc_id]
-        
-        # select top-k highest scores 
-        top = heapq.nlargest(top_k, scores.items(), key=lambda x: x[1])
 
-        # convert doc_id >>> url 
+        # Top-k results
+        top = heapq.nlargest(top_k, scores.items(), key=lambda x: x[1])
         results = [(self.doc_ids[str(doc)], score) for doc, score in top]
         return results
 
@@ -197,7 +198,7 @@ if __name__ == "__main__":
     
     print("Simple Boolean Query Search Engine - Developer:")
     print("Supports boolean operations 'AND', 'OR', 'NOT'")
-    print("Supports exact phrase searches, use double quotes for the 2 terms: ")
+    print("Supports exact phrase searches using double quotes, e.g., \"building software solutions\"")
     print("Exact Phrase examples: \"the document\", \"machine learning\"")
     print("Input a search term(s), or type '/quit' to exit.")
 
