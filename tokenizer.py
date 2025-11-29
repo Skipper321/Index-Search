@@ -6,10 +6,16 @@ import string
 # Stemming and Tokenizing html text and weights 
 import re
 from nltk.stem import PorterStemmer
+from nltk.corpus import stopwords # use nltk stopword list
 from bs4 import BeautifulSoup
 stemmer = PorterStemmer()
 stem_cache = {}
 TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
+
+import nltk
+nltk.download('stopwords')
+STOPWORDS = set(stemmer.stem(w) for w in stopwords.words("english")) # use set for fast lookup
+STOPWORD_WEIGHT = 0.5
 
 # sort dictionary by key instead 
 # returns a list
@@ -162,13 +168,18 @@ def tokenize_html(html: str):
                     stem_cache[t] = stemmer.stem(t)
                 stem = stem_cache[t]
 
+                # compute final weight considering stopwords
+                final_weight = w
+                if stem in STOPWORDS:
+                    final_weight = STOPWORD_WEIGHT * w
+
                 # Record token frequency
-                token_freqs[stem] = token_freqs.get(stem, 0) + w
+                token_freqs[stem] = token_freqs.get(stem, 0) + final_weight
 
                 # Record stem position
                 if stem not in token_positions:
                     token_positions[stem] = []
-                token_positions[stem].append((pos, w))
+                token_positions[stem].append((pos, final_weight))
 
                 # Iterate to next position
                 pos += 1
@@ -182,13 +193,16 @@ def tokenize_html(html: str):
             stem_cache[t] = stemmer.stem(t)
         stem = stem_cache[t] 
 
+        final_body_weight = 1.0
+        if stem in STOPWORDS:
+            final_body_weight *= STOPWORD_WEIGHT
         # Record token frequency
-        token_freqs[stem] = token_freqs.get(stem, 0) + 1.0
+        token_freqs[stem] = token_freqs.get(stem, 0) + final_body_weight
 
         # Record stem position
         if stem not in token_positions:
             token_positions[stem] = []
-        token_positions[stem].append((pos, 1.0))
+        token_positions[stem].append((pos, final_body_weight))
         
         # Iterate to next position
         pos += 1
