@@ -12,8 +12,10 @@ stemmer = PorterStemmer()
 stem_cache = {}
 TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 
-import nltk
-nltk.download('stopwords')
+# run these lines once to download nltk stopwords !
+# import nltk
+# nltk.download('stopwords')
+
 STOPWORDS = set(stemmer.stem(w) for w in stopwords.words("english")) # use set for fast lookup
 STOPWORD_WEIGHT = 0.5
 
