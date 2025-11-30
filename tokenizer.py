@@ -175,15 +175,12 @@ def tokenize_html(html: str):
                 if stem in STOPWORDS:
                     final_weight = STOPWORD_WEIGHT * w
 
-                # Record token frequency
                 token_freqs[stem] = token_freqs.get(stem, 0) + final_weight
 
-                # Record stem position
                 if stem not in token_positions:
                     token_positions[stem] = []
                 token_positions[stem].append((pos, final_weight))
 
-                # Iterate to next position
                 pos += 1
 
     # Handle Regular body text (weight 1.0)
@@ -198,15 +195,12 @@ def tokenize_html(html: str):
         final_body_weight = 1.0
         if stem in STOPWORDS:
             final_body_weight *= STOPWORD_WEIGHT
-        # Record token frequency
         token_freqs[stem] = token_freqs.get(stem, 0) + final_body_weight
 
-        # Record stem position
         if stem not in token_positions:
             token_positions[stem] = []
         token_positions[stem].append((pos, final_body_weight))
         
-        # Iterate to next position
         pos += 1
 
     return {

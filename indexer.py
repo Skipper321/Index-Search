@@ -130,7 +130,9 @@ def inverted_index():
 
     print("[INFO] Final index written with cosine normalization.")
 
+    # ---------------------------------------------------------
     # WRITE BINARY INDEX FOR SEARCH (Developer Route requirement)
+    # ---------------------------------------------------------
     print("[INFO] Writing binary postings...")
 
     os.makedirs("index", exist_ok=True)
@@ -158,48 +160,6 @@ def inverted_index():
                 for p in positions:
                     pbin.write(struct.pack("<i", p))
                     offset += 4
-
-            length = offset - start
-            dict_rows.append((term, df, start, length))
-
-    # 2) Write dictionary.csv
-    with open("index/dictionary.csv", "w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        w.writerow(["term", "df", "offset", "length"])
-        w.writerows(dict_rows)
-
-    # 3) Write doc_ids.json (already created above)
-    # rewrite or leave as-is
-
-    # 4) Write corpus size meta
-    with open("index/corpus_meta.json", "w", encoding="utf-8") as f:
-        json.dump({"N": len(doc_ids)}, f)
-
-    print("[INFO] Binary postings index written successfully.")
-
-    # ---------------------------------------------------------
-    # WRITE BINARY INDEX FOR SEARCH (Developer Route requirement)
-    # ---------------------------------------------------------
-    print("[INFO] Writing binary index files...")
-
-    os.makedirs("index", exist_ok=True)
-
-    final_index = final_index   # already built above
-
-    postings_path = "index/postings.bin"
-    dict_rows = []
-    offset = 0
-
-    # 1) Write postings.bin
-    with open(postings_path, "wb") as pbin:
-        for term in sorted(final_index.keys()):
-            plist = final_index[term]   # list[(doc_id, tf)]
-            df = len(plist)
-            start = offset
-
-            for doc_id, tf in plist:
-                pbin.write(struct.pack("<if", doc_id, tf))  # int32, float32
-                offset += 8
 
             length = offset - start
             dict_rows.append((term, df, start, length))
