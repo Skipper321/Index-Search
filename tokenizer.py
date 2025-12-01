@@ -123,17 +123,17 @@ def sim_hash(frequency:dict):
             
     return result
 
-def is_similar(text1:list, text2:list, threshold = 0.9):
-    """Given two pieces of content, determine if they are similar
+def is_similar(hash1:string, hash2:string, threshold = 0.9):
+    """Given two hashes, determine if they are similar
     
-    :text1: tokens of text 1
-    :text2: tokens of text 2
+    :hash1: hash of item 1
+    :hash2: hash of item 2
     :threshold=0.9: if similarity >= threshold, then it's too similar"""
 
     common_count = 0
 
-    sh1 = sim_hash(text1).split()
-    sh2 = sim_hash(text2).split()
+    sh1 = hash1.split()
+    sh2 = hash1.split()
 
     for i in range(0, 8):
         if sh1[i] == sh2[i]:
@@ -301,14 +301,15 @@ def tokenize(input_data: str):
 
     return tokens
 
-# """tokenizes HTML, borrows from original tokenizer for alphanum, but also incorporates weights"""
 def tokenize_html(html: str):
-    """
-    Tokenizes HTML content and applies weighting for title, headings, and bold text.
+    """Tokenizes HTML, borrows from original tokenizer for alphanum, but also incorporates weights. Applies weighting for title, headings, and bold text.
+
     Returns a dict of stemmed tokens -> weighted term frequency.
 
     :html: html string to be fed
     """
+
+    unstemmed_tokens = {}
 
     soup = BeautifulSoup(html, "html.parser")
     weights = {"title": 3.0, "h1": 2.5, "h2": 2.0, "h3": 1.4, "b": 1.6, "strong": 1.6 }# Modified heading weights
@@ -341,6 +342,11 @@ def tokenize_html(html: str):
                 # Record token frequency
                 token_freqs[stem] = token_freqs.get(stem, 0) + final_weight
 
+                if t in unstemmed_tokens:
+                    unstemmed_tokens[t] += 1
+                else:
+                    unstemmed_tokens[t] = 0
+
                 # Record stem position
                 if stem not in token_positions:
                     token_positions[stem] = []
@@ -372,7 +378,7 @@ def tokenize_html(html: str):
         # Iterate to next position
         pos += 1
 
-    sim_hash_value = sim_hash(token_freqs)
+    sim_hash_value = sim_hash(unstemmed_tokens)
 
     return {
         "tf": token_freqs,
