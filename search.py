@@ -1,6 +1,7 @@
 import json, csv, math, struct, heapq
 import os.path
 import tokenizer
+import time
 from collections import defaultdict
 # cannot import this! let the indexer write the files then search reads these files only
 # import indexer
@@ -196,11 +197,11 @@ if __name__ == "__main__":
     # Testings sample queries 
     engine = SearchEngine()
     
-    print("Simple Boolean Query Search Engine - Developer:")
+    print("\nSimple Boolean Query Search Engine - Developer:")
     print("Supports boolean operations 'AND', 'OR', 'NOT'")
     print("Supports exact phrase searches using double quotes, e.g., \"building software solutions\"")
     print("Exact Phrase examples: \"the document\", \"machine learning\"")
-    print("Input a search term(s), or type '/quit' to exit.")
+    print("Input a search term(s), or type '/quit' to exit.\n")
 
     while True:
         query = input("Search > ").strip()
@@ -210,8 +211,11 @@ if __name__ == "__main__":
             break
 
         print(query)
-        
+
         op = engine.parse_query_boolean(query)
+
+        # start query time
+        start_time = time.perf_counter()
         
         if op is not None and op == "AND":
             left, right = [s.strip() for s in query.upper().split("AND")]
@@ -225,6 +229,15 @@ if __name__ == "__main__":
         elif op == "NONE":
             results = engine.searchFor(query)
     
+        # calculate query search time
+        end_time = time.perf_counter()
+        elapsed_time = (end_time - start_time) * 1000 # convert to ms
+
         engine.printResults(results)
+        print(f"\nQuery returned {len(results)} results in {elapsed_time:.2f} ms.")
+        if elapsed_time <= 300:
+            print("[INFO] Query executed under 300 ms.\n\n")
+        else:
+            print("[INFO] Query took longer than 300 ms.\n\n")
 
     
