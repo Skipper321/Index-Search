@@ -6,15 +6,22 @@ import math # support cosine normalization - account for TF-IDF flaws with longe
 BATCH_SIZE = 2000 # partial index every 2000 documents
 RAW_DIR = "raw/DEV"
 
-# Write partial index to disk 
-def write_partial_index(index, batch):
+def write_partial_index(index: int, batch):
+    """Write partial index to disk
+
+    :index: index of partial 
+    :batch: current batch
+    """
+
     path = f"index_part_{batch}.json"
     with open(path, "w", encoding="utf-8") as f:
         json.dump(index, f)
     print(f"[INFO] Wrote partial index: {path} ({len(index)} tokens)")
 
-# Merge all partial index json files into one final index 
-def merge_indexes():
+def merge_indexes() -> dict:
+    """Merge all partial index json files into one final index 
+
+    Returns final index dict"""
     final_index = {}
 
     parts = [f for f in os.listdir() if f.startswith("index_part_")]
@@ -38,8 +45,9 @@ def merge_indexes():
 
     return final_index
 
-
 def inverted_index():
+    """Creates an inverted index"""
+
     index = {}            # term -> list of (doc_id, freq)
     doc_ids = {}          # doc_id -> URL
     doc_id = 0
