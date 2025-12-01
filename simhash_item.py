@@ -52,8 +52,8 @@ class sh_set:
         self.uniques = set()
         self.size = 0
 
-    def threshold(self):
-        return self.threshold
+    def threshold():
+        return THRESHOLD
 
     def add(self, simhash:sh_item):
         """Adds a new simhash item to the simhash set
