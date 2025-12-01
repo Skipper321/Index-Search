@@ -276,8 +276,7 @@ def getSlicedWords(bigWord:string, firstSplit = -1):
 # NOTE: IGNORE we need to use stemming 
 # (we just call it for tokenizing alphanumeric)
 def tokenize(input_data: str):
-    """Raw tokenizer with no stemming, returns a list of tokens
-    """
+    """Raw tokenizer with stemming (old) """
     tokens = []
 
     if os.path.isfile(input_data):
@@ -291,9 +290,12 @@ def tokenize(input_data: str):
             try:
                 valIndex = isValidWord(word)
                 if valIndex == -1:
-                    tokens.append(word.lower())
+                    stemmed = stemmer.stem(word.lower())
+                    tokens.append(stemmed)
                 else:
-                    tokens.extend(getSlicedWords(word))
+                    wordsSlicedFromWord = getSlicedWords(word)
+                    stemmed_words = [stemmer.stem(w.lower()) for w in wordsSlicedFromWord]
+                    tokens.extend(stemmed_words)
             except Exception:
                 continue
 
