@@ -71,11 +71,19 @@ def num_to_list(hash_val):
     """Converts a numeric hash value into a list of numbers, helper function for vectorization"""
     return [int(digit) for digit in str(hash_val)]
 
-def sim_hash(text):
-    """Creates a fingerprint based on the text body
-    
-    Currently doesn't discrimminate with HTML tags, so should be used in areas where the content is likely"""
-    tokens = tokenize(text)
+def sim_hash(tokens):
+    """
+    Creates a fingerprint (simhash method) based on the tokens given
+
+    Returns the hash, each digit splitted into a list
+
+    Currently doesn't discrimminate with HTML tags, so should be used in areas where the content is likely
+        
+    :tokens: list of tokens (already tokenized)
+    """
+
+    # if (type(tokens) != list):
+    #     tokens = tokenize(tokens)
     
     # frequency counts how frequent word appears in text (ie. "weights")
     unique = set(tokens)
@@ -118,20 +126,28 @@ def sim_hash(text):
     # print("sums at each positions: (index = item) ", position_sum)
     result = get_final_hash(position_sum)
             
-    return result
+    return result.split()
 
-def detect_similarity(item1, item2, threshold=0.9):
-    """Detects similarity with pre-existing documents
-    :threshold=0.9: 
-    Returns true if similar, false if not similar"""
-    sim_score = 0
-
-    f1 = create_fingerprint(item1)
-    f2 = create_fingerprint(item2)
-
+def is_similar(text1:list, text2:list, threshold = 0.9):
+    """Given two pieces of content, determine if they are similar
     
-    return (sim_score > threshold)
+    :text1: tokens of text 1
+    :text2: tokens of text 2
+    :threshold=0.9: if similarity >= threshold, then it's too similar"""
 
+    common_count = 0
+
+    sh1 = sim_hash(text1)
+    sh2 = sim_hash(text2)
+
+    for i in range(0, 8):
+        if sh1[i] == sh2[i]:
+            common_count += 1
+    
+    # n bits = 8
+    score = common_count/8
+
+    return score >= threshold
 
 def getSortedList(freq:dict):
     """sort dictionary by key instead 
@@ -146,9 +162,20 @@ def getSortedList(freq:dict):
     
     return myList
 
-
-
 #!SECTION - Output helper functions
+
+def getSortedList(freq:dict):
+    """sort dictionary by key instead 
+    returns a list[[i, frequency]]"""
+
+    valueSorted = sorted(freq, key=freq.get, reverse=True)
+    myList = []
+
+    for i in valueSorted:
+        current = [i, freq[i]]
+        myList.append(current)
+    
+    return myList
 
 # prints dict - renamed so that doesn't interfere with built in print function
 # returns list (optional)
@@ -229,8 +256,8 @@ def getSliceIndices(word:string):
 
     return indices
 
-# takes non-alphanumeric word and gets alphanumeric words within that word
 def getSlicedWords(bigWord:string, firstSplit = -1):
+    """takes non-alphanumeric word and gets alphanumeric words within that word"""
     splittedWords = []
     prev = 0
 
@@ -250,7 +277,9 @@ def getSlicedWords(bigWord:string, firstSplit = -1):
 
 #!SECTION - Tokenizer functions
 
-# tokenizer - NOTE: IGNORE we need to use stemming (we just call it for tokenizing alphanumeric)
+# tokenizer - 
+# NOTE: IGNORE we need to use stemming 
+# (we just call it for tokenizing alphanumeric)
 def tokenize(input_data: str):
     """Raw tokenizer with no stemming, returns a list of tokens
     """
@@ -277,7 +306,7 @@ def tokenize(input_data: str):
 
 # """tokenizes HTML, borrows from original tokenizer for alphanum, but also incorporates weights"""
 def tokenize_html(html: str):
-    """    Tokenizes HTML content and applies weighting for title, headings, and bold text.
+    """Tokenizes HTML content and applies weighting for title, headings, and bold text.
     Returns a dict of stemmed tokens -> weighted term frequency.
     """
 

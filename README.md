@@ -39,8 +39,20 @@ Note: my .gitignore includes `analyst.zip` and `developer.zip` because we alread
 `tokenizer.py`: Functional
 'search.py': Functional
 
+## Extra credit items done:
+- Index anchor words for the target pages (1 point).
 
-## How to run
+## Extra credit items to do:
+- Detect and eliminate duplicate pages. (1 point for exact, 2 points for near)
+- Add HITS and/or Page Rank to your ranking formula. (1.5 for HITS, 2.5 for PR)
+- Implement an additional 2-gram and/or 3-gram indexing and use it during retrieval. (1 point)
+- Enhance the index with word positions and use that information for retrieval. (2 points)
+- Implement a Web or GUI interface instead of a console one. (1 point for local GUI, 2 points for Web interface)
+
+## How to run: 
+1. [Install](Installations-required) dependencies
+2. [Run the installer](Running-the-installer)
+3. [Run the search](Running-the-query)
 
 ### Installations required
 `python -pip install nltk`

@@ -34,3 +34,9 @@ index_part_26.json
 
 doc_ids.json
 final_index.json
+__pycache__/file_items.cpython-313.pyc
+__pycache__/tokenizer.cpython-313.pyc
+index/corpus_meta.json
+index/dictionary.csv
+index/doc_norms.json
+index/postings.bin
