@@ -12,6 +12,8 @@ stemmer = PorterStemmer()
 stem_cache = {}
 TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 
+B_BIT = 8
+
 # run these lines once to download nltk stopwords !
 # import nltk
 # nltk.download('stopwords')
@@ -56,10 +58,10 @@ def hash_word(my_str):
     result = int(bin(int(hashcode,16))[2:])
     temp_str = str(result) + ""
 
-    if (len(temp_str) < 8):
+    if (len(temp_str) < B_BIT):
         temp_str = temp_str + len(str(result))*"0" + "1"
-    if (len(temp_str) > 8):
-        temp_str = temp_str[0:8]
+    if (len(temp_str) > B_BIT):
+        temp_str = temp_str[0:B_BIT]
 
     return temp_str
 
@@ -105,7 +107,7 @@ def sim_hash(frequency:dict):
 
     # j = rows (number of words)
     # i = columns (always 8 or however many bits)
-    for i in range (0, 8):
+    for i in range (0, B_BIT):
         current_sum = 0
 
         for j in range(0, n):
@@ -135,12 +137,12 @@ def is_similar(hash1:string, hash2:string, threshold = 0.9):
     sh1 = hash1.split()
     sh2 = hash1.split()
 
-    for i in range(0, 8):
+    for i in range(0, B_BIT):
         if sh1[i] == sh2[i]:
             common_count += 1
     
     # n bits = 8
-    score = common_count/8
+    score = common_count/B_BIT
 
     return score >= threshold
 
@@ -416,7 +418,7 @@ if __name__ == '__main__':
     """
 
     # sample_fingerprinting = "I love diving, I love love love love"
-    # print(sim_hash(sample_fingerprinting))
+    # print(sim_hash(computeWordFrequencies(tokenize(sample_fingerprinting))))
 
     tokens = tokenize_html(samplehtml)
     print("Weighted tokens:\n")
