@@ -19,9 +19,102 @@ TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 STOPWORDS = set(stemmer.stem(w) for w in stopwords.words("english")) # use set for fast lookup
 STOPWORD_WEIGHT = 0.5
 
-# sort dictionary by key instead 
-# returns a list
+# For similarity detection
+import hashlib
+
+def apply_signs(current_signs, weights:list):
+    """Sums the weights according to the signs
+
+    :signs: the current corresponding signs, already hashed and "listed" out 
+    :weights: const weight/frequency of words, unchanging, will always be positive int
+    """
+    sum = 0
+    for i in range(0, len(weights)):
+        tbd = abs(weights[i])
+
+        if (determine_sign(current_signs[i]) == False):
+            tbd *= -1
+        
+        sum += tbd
+
+    return sum
+
+def determine_sign(hash_digit):
+    """
+    Helper function to determine signs from a hash digit
+
+    :True: positive sign (addition)
+
+    :False: negative sign (subtraction)
+    """
+    return (hash_digit == 1)
+
+def hash_word(str):
+    """Creates an 8 bit hash value from a given string"""
+    return int(hashlib.sha256(str.encode('utf-8')).hexdigest(), 16) % 10**8
+
+def num_to_list(hash_val):
+    """Converts a numeric hash value into a list of numbers, helper function for vectorization"""
+    return [int(digit) for digit in str(hash_val)]
+
+def create_fingerprint(text):
+    """Creates a fingerprint based on the text body
+    
+    Currently doesn't discrimminate with HTML tags, so should be used in areas where the content is likely"""
+    tokens = tokenize(text)
+    
+    # frequency counts how frequent word appears in text (ie. "weights")
+    unique = set(tokens)
+    frequency = {}
+    for word in unique:
+        frequency[word] = tokens.count(word)
+    weights = getSortedList(frequency) # A list of [word, frequency] items
+    n = len(weights)
+
+    print("weights: ", weights, "\n")
+
+    # Create V vector
+    # NOTE: IMPORTANT!! this MUST be in the sorted order of `weights`)
+    hash_vals = [ hash_word(item[0]) for item in weights ] 
+    # A list of hash values
+
+    sum = 0
+
+
+    for i in range(0, n):
+        word = weights[i][0]
+        weight = weights[i][1]
+        hash_val = hash_word(word)
+        bit_signs = [ determine_sign for num in num_to_list(hash_val)]
+
+        number_to_add = abs(weight)
+        if (sign == False):
+            number_to_add *= -1
+        
+        current_sum += number_to_add
+
+        print(j + 1, "th term : ", current_sum)
+        sum += current_sum
+        
+    return sum
+
+def detect_similarity(item1, item2, threshold=0.9):
+    """Detects similarity with pre-existing documents
+    :threshold=0.9: 
+    Returns true if similar, false if not similar"""
+    sim_score = 0
+
+    f1 = create_fingerprint(item1)
+    f2 = create_fingerprint(item2)
+
+    
+    return (sim_score > threshold)
+
+
 def getSortedList(freq:dict):
+    """sort dictionary by key instead 
+    returns a list[[i, frequency]]"""
+
     valueSorted = sorted(freq, key=freq.get, reverse=True)
     myList = []
 
@@ -30,6 +123,10 @@ def getSortedList(freq:dict):
         myList.append(current)
     
     return myList
+
+
+
+#SECTION - Output helper functions
 
 # prints dict - renamed so that doesn't interfere with built in print function
 # returns list (optional)
@@ -41,9 +138,11 @@ def print_freq(freq:dict) -> list:
         __builtins__.print(current)
     return myList
 
-# retrieves the path
-# position = file position path
 def getInput(position:int = 1):
+    """retrieves the path
+
+    position = file position path
+    """
     path = sys.argv[position]
 
     # Check if path exits
@@ -53,12 +152,15 @@ def getInput(position:int = 1):
     else:
         __builtins__.print("Path not found! Input: ", path)
 
-# converts char to ascii
+
+#SECTION - Validates words
+
 def charToAscii(myChar):
+    """converts char to ascii"""
     return ord(myChar)
 
-# determines if char is alphanumeric
 def isAsciiChar(ch) -> bool:
+    """Determines if char is alphanumeric"""
 
     aVal = charToAscii(ch)
 
@@ -76,19 +178,24 @@ def isAsciiChar(ch) -> bool:
 
     return False
 
-
-# checks if string is valid
-# 
-# -1 if valid
-# index of the first character that is invalid
 def isValidWord(word:string):
+    """Checks if string is valid
+
+    -1 if valid
+
+    index of the first character that is invalid
+    """
     # Note: return -1 if valid
 
     for i in range(0, len(word)):
         if not isAsciiChar(word[i]):        
             return i
     return -1
-    
+
+
+
+#SECTION - Helper functions to slice words until they're valid
+
 # gets indices of non-alphanumeric characters in a word
 def getSliceIndices(word:string):
     indices = []
@@ -116,8 +223,15 @@ def getSlicedWords(bigWord:string, firstSplit = -1):
 
     return splittedWords
 
-# tokenizer - IGNORE we need to use stemming (we just call it for tokenizing alphanumeric)
+
+
+
+#SECTION - Tokenizer functions
+
+# tokenizer - NOTE: IGNORE we need to use stemming (we just call it for tokenizing alphanumeric)
 def tokenize(input_data: str):
+    """Raw tokenizer with no stemming, returns a list of tokens
+    """
     tokens = []
 
     if os.path.isfile(input_data):
@@ -131,22 +245,20 @@ def tokenize(input_data: str):
             try:
                 valIndex = isValidWord(word)
                 if valIndex == -1:
-                    stemmed = stemmer.stem(word.lower())
-                    tokens.append(stemmed)
+                    tokens.append(word.lower())
                 else:
-                    wordsSlicedFromWord = getSlicedWords(word)
-                    stemmed_words = [stemmer.stem(w.lower()) for w in wordsSlicedFromWord]
-                    tokens.extend(stemmed_words)
+                    tokens.extend(getSlicedWords(word))
             except Exception:
                 continue
 
     return tokens
 
-
-# tokenizes HTML, borrows from original tokenizer for alphanum, but also incorporates weights
+# """tokenizes HTML, borrows from original tokenizer for alphanum, but also incorporates weights"""
 def tokenize_html(html: str):
-    #Tokenizes HTML content and applies weighting for title, headings, and bold text.
-    #Returns a dict of stemmed tokens -> weighted term frequency.
+    """    Tokenizes HTML content and applies weighting for title, headings, and bold text.
+    Returns a dict of stemmed tokens -> weighted term frequency.
+    """
+
     soup = BeautifulSoup(html, "html.parser")
     weights = {"title": 3.0, "h1": 2.5, "h2": 2.0, "h3": 1.4, "b": 1.6, "strong": 1.6 }# Modified heading weights
 
@@ -238,11 +350,17 @@ if __name__ == '__main__':
             <h1>Research Areas</h1>
             <p>UCI focuses on computing and data science.</p>
             <b>Machine Learning</b> is a core field.
+            <a href="http://en.wikipedia.org/wiki/Main_Page">Sample anchor words</a>
         </body>
     </html>
     """
-    tokens = tokenize_html(samplehtml)
-    print("Weighted tokens:\n")
-    for t, freq in list(tokens.items())[:15]:
-        print(f"{t}: {freq}")
+
+    sample_tropical_fish = "Tropical fish include fish found in tropical environments around the world, including both freshwater and salt water species"
+
+    print(create_fingerprint(sample_tropical_fish))
+    # tokens = tokenize_html(samplehtml)
+    # print("Weighted tokens:\n")
+    # for t, freq in list(tokens.items())[:15]:
+    #     print(f"{t}: {freq}")
+
     #shouldBeSorted = print(frequencies)
