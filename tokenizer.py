@@ -22,10 +22,6 @@ STOPWORD_WEIGHT = 0.5
 # For similarity detection
 import hashlib
 
-def get_value(weight, sign:bool):
-    """Given a weight, apply its sign"""
-    return weight if sign else weight*(-1)
-
 def get_final_hash(values):
     """Given the V vector final values, returns a final hash (as a string)"""
     myhash = ""
@@ -71,26 +67,26 @@ def num_to_list(hash_val):
     """Converts a numeric hash value into a list of numbers, helper function for vectorization"""
     return [int(digit) for digit in str(hash_val)]
 
-def sim_hash(tokens):
-    """
-    Creates a fingerprint (simhash method) based on the tokens given
+def sim_hash(frequency:dict):
+    """Creates a fingerprint (simhash method) based on the token frequency dictionary
 
-    Returns the hash, each digit splitted into a list
+    Returns the hash as a string
 
     Currently doesn't discrimminate with HTML tags, so should be used in areas where the content is likely
         
-    :tokens: list of tokens (already tokenized)
+    :tokens: dictionary of token with the keys as frequency
     """
 
     # if (type(tokens) != list):
     #     tokens = tokenize(tokens)
     
     # frequency counts how frequent word appears in text (ie. "weights")
-    unique = set(tokens)
-    frequency = {}
-    for word in unique:
-        frequency[word] = tokens.count(word)
-    weights = getSortedList(frequency) # A list of [word, frequency] items
+    # unique = set(tokens)
+    # frequency = {}
+    # for word in unique:
+    #     frequency[word] = tokens.count(word)
+
+    weights = getSortedList(frequency) # A list of [word, frequency] items sorted by frequency
     n = len(weights)
 
     # Create V vector
@@ -116,17 +112,16 @@ def sim_hash(tokens):
             # current_word = weights[j][0] 
             current_weight = weights[j][1]
             current_sign = signs[j][i]
-            current_value = get_value(current_weight, current_sign)
-            current_sum += current_value
+            current_sum += current_weight if current_sign else current_weight*(-1)
 
         position_sum.append(current_sum)        
-        sum += current_value
+        sum += current_sum
 
     # Optionally prints the sum for each position
     # print("sums at each positions: (index = item) ", position_sum)
     result = get_final_hash(position_sum)
             
-    return result.split()
+    return result
 
 def is_similar(text1:list, text2:list, threshold = 0.9):
     """Given two pieces of content, determine if they are similar
@@ -137,8 +132,8 @@ def is_similar(text1:list, text2:list, threshold = 0.9):
 
     common_count = 0
 
-    sh1 = sim_hash(text1)
-    sh2 = sim_hash(text2)
+    sh1 = sim_hash(text1).split()
+    sh2 = sim_hash(text2).split()
 
     for i in range(0, 8):
         if sh1[i] == sh2[i]:
@@ -306,8 +301,11 @@ def tokenize(input_data: str):
 
 # """tokenizes HTML, borrows from original tokenizer for alphanum, but also incorporates weights"""
 def tokenize_html(html: str):
-    """Tokenizes HTML content and applies weighting for title, headings, and bold text.
+    """
+    Tokenizes HTML content and applies weighting for title, headings, and bold text.
     Returns a dict of stemmed tokens -> weighted term frequency.
+
+    :html: html string to be fed
     """
 
     soup = BeautifulSoup(html, "html.parser")
@@ -372,9 +370,12 @@ def tokenize_html(html: str):
         # Iterate to next position
         pos += 1
 
+    sim_hash_value = sim_hash(token_freqs)
+
     return {
         "tf": token_freqs,
-        "positions": token_positions
+        "positions": token_positions,
+        "simhash": sim_hash_value
     }
 
 # gets word frequency
@@ -413,5 +414,4 @@ if __name__ == '__main__':
     print("Weighted tokens:\n")
     for t, freq in list(tokens.items())[:15]:
         print(f"{t}: {freq}")
-
-    shouldBeSorted = print(frequencies)
+    
