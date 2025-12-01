@@ -37,6 +37,8 @@ class sh_item:
         return is_exact | is_similar
 
 class sh_set:
+    # TODO: need to optimize... especially if we're not using it batch-wise
+
     """A set of simhashes
     
     Will not accept hashes that are too similar
@@ -50,16 +52,20 @@ class sh_set:
         self.uniques = set()
         self.size = 0
 
+    def threshold(self):
+        return self.threshold
+
     def add(self, simhash:sh_item):
         """Adds a new simhash item to the simhash set
 
         True: Value was unique or similar
         False: Value was not unique or similar
         """
-        self.uniques.add(simhash.value)            
+        self.uniques.add(simhash.value) # don't add the simhash object itself
 
         if (self.size == len(self.uniques) | self.__contains__(sh_item)):
             # Value was not unique OR simhash value was too similar
+            # print("Too similar: ", simhash.value)
             return False 
         else:
             # Value was unique enough OR simhash was not found
@@ -79,11 +85,14 @@ class sh_set:
 
 
 if __name__ == "__main__":
-    i1 = sh_item("11110000")
-    i2 = sh_item("11110000")
-    i3 = sh_item("11110001")
-    i4 = sh_item("11110111")
+    i1 = sh_item("1111000011110000")
+    i2 = sh_item("1111000011110000")
+    i3 = sh_item("1111000111110001")
+    i4 = sh_item("1111011111110111")
 
     print ("Should be both true: ", i1 == i2, ", ", hash(i1) == hash(i2) )
-    print ("Should be both true, false: ", i1 == i3, ", ", hash(i1) == hash(i3) )
     print ("Should be both false: ", i1 == i4, ", ", hash(i1) == hash(i4))
+
+    myset = sh_set()
+
+    print("Threshold: ", myset.threshold)

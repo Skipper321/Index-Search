@@ -15,7 +15,7 @@ TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 # Python constants suck...
 def B_BIT():
     """Constant for how many bits there should be"""
-    return 8
+    return 16
 
 def THRESHOLD():
     """Constant for the threshold"""
@@ -59,14 +59,15 @@ def determine_sign(hash_digit):
 # TODO: this is a temporary solution
 # needs work/response from TA since we're not sure how the binary values are generated
 def hash_word(my_str):
-    """Creates an 8 bit hash value from a given string, of binary values only"""
+    """Creates an B BIT hash value from a given string, of binary values only"""
 
     hashcode=hashlib.md5(my_str.encode('utf-8')).hexdigest()
     result = int(bin(int(hashcode,16))[2:])
     temp_str = str(result) + ""
 
     if (len(temp_str) < B_BIT()):
-        temp_str = temp_str + len(str(result))*"0" + "1"
+        temp_str = temp_str*8
+        temp_str = temp_str[0:B_BIT()]
     if (len(temp_str) > B_BIT()):
         temp_str = temp_str[0:B_BIT()]
 
@@ -423,11 +424,32 @@ if __name__ == '__main__':
     </html>
     """
 
-    # sample_fingerprinting = "I love diving, I love love love love"
-    # print(sim_hash(computeWordFrequencies(tokenize(sample_fingerprinting))))
+#     sample_fingerprinting = ["I love diving, I love love love love",
+#                              """Hashing a string to a specific length - encryption
 
-    tokens = tokenize_html(samplehtml)
-    print("Weighted tokens:\n")
-    for t, freq in list(tokens.items())[:15]:
-        print(f"{t}: {freq}")
+# Stack Overflow
+# 3 answers · 8 years ago
+# SHA<whatever> always output a hash of a fixed length. If you want it longer, append random bytes to it and remove them if you need to compare.
+
+# Secure way to shorten a hash
+
+# Information Security Stack Exchange
+# https://security.stackexchange.com › questions › secure-...
+# Aug 20, 2015 — Simply truncating a hash is the common and accepted way to shorten it. You don't need to do anything fancy.
+
+# Creating a unique hash given input size is constant
+
+# Reddit · r/AskComputerScience
+# 3 comments · 5 years ago
+# All hash functions are constrained by the counting principle - if your hash has N bits, but your input has more than N bits, there will be hash ...
+# Missing: make ‎| Show results with: make
+# """]
+
+#     for sample in sample_fingerprinting:
+#         print(sim_hash(computeWordFrequencies(tokenize(sample))))
+
+    # tokens = tokenize_html(samplehtml)
+    # print("Weighted tokens:\n")
+    # for t, freq in list(tokens.items())[:15]:
+    #     print(f"{t}: {freq}")
     
