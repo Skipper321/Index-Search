@@ -23,7 +23,7 @@ STOPWORD_WEIGHT = 0.5
 import hashlib
 
 def get_value(weight, sign:bool):
-    """Given a weight, applly its sign"""
+    """Given a weight, apply its sign"""
     return weight if sign else weight*(-1)
 
 def get_final_hash(values):
@@ -35,7 +35,7 @@ def get_final_hash(values):
 
     return myhash
 
-def apply_signs(word):
+def get_signs(word):
     """Given a word, return its signs
     
     Returns list of booleans"""
@@ -87,7 +87,7 @@ def sim_hash(text):
 
     # Create V vector
     # NOTE: IMPORTANT!! this MUST be in the sorted order of `weights`)
-    signs = [ apply_signs(item[0]) for item in weights ]
+    signs = [ get_signs(item[0]) for item in weights ]
     # A list of list<boolean> of size n
     # Each entry representing a hash value, of size b-bit
 
