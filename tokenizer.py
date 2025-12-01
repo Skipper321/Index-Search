@@ -22,22 +22,24 @@ STOPWORD_WEIGHT = 0.5
 # For similarity detection
 import hashlib
 
-def apply_signs(current_signs, weights:list):
-    """Sums the weights according to the signs
+def get_value(weight, sign:bool):
+    """Given a weight, applly its sign"""
+    return weight if sign else weight*(-1)
 
-    :signs: the current corresponding signs, already hashed and "listed" out 
-    :weights: const weight/frequency of words, unchanging, will always be positive int
-    """
-    sum = 0
-    for i in range(0, len(weights)):
-        tbd = abs(weights[i])
+def get_final_hash(values):
+    """Given the V vector final values, returns a final hash (as a string)"""
+    myhash = ""
 
-        if (determine_sign(current_signs[i]) == False):
-            tbd *= -1
-        
-        sum += tbd
+    for value in values:
+        myhash += str(1 if value >= 0 else 0)
 
-    return sum
+    return myhash
+
+def apply_signs(word):
+    """Given a word, return its signs
+    
+    Returns list of booleans"""
+    return [ determine_sign(item) for item in num_to_list(hash_word(word)) ] 
 
 def determine_sign(hash_digit):
     """
@@ -49,15 +51,27 @@ def determine_sign(hash_digit):
     """
     return (hash_digit == 1)
 
-def hash_word(str):
-    """Creates an 8 bit hash value from a given string"""
-    return int(hashlib.sha256(str.encode('utf-8')).hexdigest(), 16) % 10**8
+# TODO: this is a temporary solution
+# needs work/response from TA since we're not sure how the binary values are generated
+def hash_word(my_str):
+    """Creates an 8 bit hash value from a given string, of binary values only"""
+
+    hashcode=hashlib.md5(my_str.encode('utf-8')).hexdigest()
+    result = int(bin(int(hashcode,16))[2:])
+    temp_str = str(result) + ""
+
+    if (len(temp_str) < 8):
+        temp_str = temp_str + len(str(result))*"0" + "1"
+    if (len(temp_str) > 8):
+        temp_str = temp_str[0:8]
+
+    return temp_str
 
 def num_to_list(hash_val):
     """Converts a numeric hash value into a list of numbers, helper function for vectorization"""
     return [int(digit) for digit in str(hash_val)]
 
-def create_fingerprint(text):
+def sim_hash(text):
     """Creates a fingerprint based on the text body
     
     Currently doesn't discrimminate with HTML tags, so should be used in areas where the content is likely"""
@@ -71,32 +85,40 @@ def create_fingerprint(text):
     weights = getSortedList(frequency) # A list of [word, frequency] items
     n = len(weights)
 
-    print("weights: ", weights, "\n")
-
     # Create V vector
     # NOTE: IMPORTANT!! this MUST be in the sorted order of `weights`)
-    hash_vals = [ hash_word(item[0]) for item in weights ] 
-    # A list of hash values
+    signs = [ apply_signs(item[0]) for item in weights ]
+    # A list of list<boolean> of size n
+    # Each entry representing a hash value, of size b-bit
 
+    # Optionally prints the weights
+    # for i in range(0, len(signs)): 
+    #     print(weights[i][0], " has weight: " , weights[i][1], " and signs: ", signs[i])
+
+    # Calculates the v vector sum
     sum = 0
+    position_sum = []
 
+    # j = rows (number of words)
+    # i = columns (always 8 or however many bits)
+    for i in range (0, 8):
+        current_sum = 0
 
-    for i in range(0, n):
-        word = weights[i][0]
-        weight = weights[i][1]
-        hash_val = hash_word(word)
-        bit_signs = [ determine_sign for num in num_to_list(hash_val)]
+        for j in range(0, n):
+            # current_word = weights[j][0] 
+            current_weight = weights[j][1]
+            current_sign = signs[j][i]
+            current_value = get_value(current_weight, current_sign)
+            current_sum += current_value
 
-        number_to_add = abs(weight)
-        if (sign == False):
-            number_to_add *= -1
-        
-        current_sum += number_to_add
+        position_sum.append(current_sum)        
+        sum += current_value
 
-        print(j + 1, "th term : ", current_sum)
-        sum += current_sum
-        
-    return sum
+    # Optionally prints the sum for each position
+    # print("sums at each positions: (index = item) ", position_sum)
+    result = get_final_hash(position_sum)
+            
+    return result
 
 def detect_similarity(item1, item2, threshold=0.9):
     """Detects similarity with pre-existing documents
@@ -126,7 +148,7 @@ def getSortedList(freq:dict):
 
 
 
-#SECTION - Output helper functions
+#!SECTION - Output helper functions
 
 # prints dict - renamed so that doesn't interfere with built in print function
 # returns list (optional)
@@ -153,7 +175,7 @@ def getInput(position:int = 1):
         __builtins__.print("Path not found! Input: ", path)
 
 
-#SECTION - Validates words
+#!SECTION - Validates words
 
 def charToAscii(myChar):
     """converts char to ascii"""
@@ -194,7 +216,7 @@ def isValidWord(word:string):
 
 
 
-#SECTION - Helper functions to slice words until they're valid
+#!SECTION - Helper functions to slice words until they're valid
 
 # gets indices of non-alphanumeric characters in a word
 def getSliceIndices(word:string):
@@ -226,7 +248,7 @@ def getSlicedWords(bigWord:string, firstSplit = -1):
 
 
 
-#SECTION - Tokenizer functions
+#!SECTION - Tokenizer functions
 
 # tokenizer - NOTE: IGNORE we need to use stemming (we just call it for tokenizing alphanumeric)
 def tokenize(input_data: str):
@@ -287,12 +309,15 @@ def tokenize_html(html: str):
                 if stem in STOPWORDS:
                     final_weight = STOPWORD_WEIGHT * w
 
+                # Record token frequency
                 token_freqs[stem] = token_freqs.get(stem, 0) + final_weight
 
+                # Record stem position
                 if stem not in token_positions:
                     token_positions[stem] = []
                 token_positions[stem].append((pos, final_weight))
 
+                # Iterate to next position
                 pos += 1
 
     # Handle Regular body text (weight 1.0)
@@ -307,12 +332,15 @@ def tokenize_html(html: str):
         final_body_weight = 1.0
         if stem in STOPWORDS:
             final_body_weight *= STOPWORD_WEIGHT
+        # Record token frequency
         token_freqs[stem] = token_freqs.get(stem, 0) + final_body_weight
 
+        # Record stem position
         if stem not in token_positions:
             token_positions[stem] = []
         token_positions[stem].append((pos, final_body_weight))
         
+        # Iterate to next position
         pos += 1
 
     return {
@@ -349,12 +377,12 @@ if __name__ == '__main__':
     </html>
     """
 
-    sample_tropical_fish = "Tropical fish include fish found in tropical environments around the world, including both freshwater and salt water species"
+    # sample_fingerprinting = "I love diving, I love love love love"
+    # print(sim_hash(sample_fingerprinting))
 
-    print(create_fingerprint(sample_tropical_fish))
-    # tokens = tokenize_html(samplehtml)
-    # print("Weighted tokens:\n")
-    # for t, freq in list(tokens.items())[:15]:
-    #     print(f"{t}: {freq}")
+    tokens = tokenize_html(samplehtml)
+    print("Weighted tokens:\n")
+    for t, freq in list(tokens.items())[:15]:
+        print(f"{t}: {freq}")
 
-    #shouldBeSorted = print(frequencies)
+    shouldBeSorted = print(frequencies)
