@@ -111,7 +111,7 @@ def inverted_index():
                 batch_number += 1
 
                 print(f"[INFO] Processed {processed_docs} documents...")
-                print(f"[INFO] {skips} files skipped during this batch, due to similarity detection with a threshold of {sh_set.threshold()}")
+                print(f"[INFO] {skips} files skipped during this batch due to being too similar in content")
                 skips = 0
 
     # write final partial
