@@ -19,11 +19,11 @@ class FileItem:
     contents = ""
     encoding = ""
     filename = ""
+    simhash = ""
 
     def __init__(self, js_filename):
         self.filename = js_filename
         self.parse_data()
-    
 
     def parse_data(self):
         # NOTE: A method that parses the content of the fileItem, with json library
@@ -36,11 +36,11 @@ class FileItem:
                 self.url = ""
                 self.content = ""
                 self.encoding = ""
+                self.simhash = ""
                 return
 
             parsed_data = json.loads(data)
         
-            # print("printing:" , parsed_data['url'])
             self.url = parsed_data['url']
             self.content = parsed_data['content']
             self.encoding = parsed_data['encoding']
@@ -50,6 +50,7 @@ class FileItem:
             self.url = ""
             self.content = ""
             self.encoding = ""
+            self.simhash = ""
     
     def parse_contents(self):
         # TODO: A method that parses the contents of the fileItem
@@ -65,6 +66,8 @@ class FileItem:
             return {}
         
         token_freqs = tokenizer.tokenize_html(self.content)
+        self.simhash = token_freqs['simhash']
+        # print(token_freqs['simhash'])
 
         # Safety check: if tokenize_html accidentally returned a string
         if isinstance(token_freqs, str):
