@@ -3,7 +3,8 @@ import string
 import hashlib
 
 B_BIT = tokenizer.B_BIT()
-THRESHOLD = tokenizer.THRESHOLD()
+THRESHOLD = 0.8
+# tokenizer.THRESHOLD()
 
 class sh_item:
     """Simhash item, representing a single simhash
@@ -38,7 +39,6 @@ class sh_item:
 
 class sh_set:
     # TODO: need to optimize... especially if we're not using it batch-wise
-
     """A set of simhashes
     
     Will not accept hashes that are too similar
@@ -78,6 +78,7 @@ class sh_set:
         
         If threshold = 0, it will always be false
         """
+
         return simhash in self.values
 
     def __sizeof__(self):
@@ -87,11 +88,15 @@ class sh_set:
 if __name__ == "__main__":
     i1 = sh_item("1111000011110000")
     i2 = sh_item("1111000011110000")
-    i3 = sh_item("1111000111110001")
+
+    i3 = sh_item("1111000011110001")
     i4 = sh_item("1111011111110111")
+
+    print("Hash and equality should both be equal and true (requirement for sets): ", i1 == i1, ", ", hash(i1) == hash(i1))
 
     print ("Should be both true: ", i1 == i2, ", ", hash(i1) == hash(i2) )
     print ("Should be both false: ", i1 == i4, ", ", hash(i1) == hash(i4))
+    print("Similarity test: ", i1 == i3, ", ", hash(i1) == hash(i3))
 
     myset = sh_set()
 
