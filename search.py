@@ -3,8 +3,12 @@ import os.path
 import tokenizer
 import time
 from collections import defaultdict
-# cannot import this! let the indexer write the files then search reads these files only
-# import indexer
+import nltk 
+from nltk.corpus import wordnet as wn
+
+#nltk.download("wordnet")
+#nltk.download("omw-1.4")
+
 
 
 class SearchEngine:
@@ -104,27 +108,83 @@ class SearchEngine:
                     break
 
         return matches
+    
+    def expand_synonyms(self, terms, max_synonyms = 3):
+        synonym_terms = set()
+        
+        for t in terms:
+            # get wordnet synonoms
+            synsets = wn.synsets(t)
+            count = 0
+            
+            for syn in synsets:
+                for lemma in syn.lemmas():
+                    if count >= max_synonyms: # if more than 3 syn break
+                        break
+                    word = lemma.name().lower().replace("_", " ")
+                    
+                    # tokenize and stem synonom
+                    tok = tokenizer.tokenize(word)
+                    if tok:
+                        synonym_terms.add(tok[0])
+                        count += 1
+                if count >= max_synonyms:
+                    break
+        
+        return synonym_terms
+    
+    def is_high_df(self, term, threshold=1000):
+        if term not in self.dictionary:
+            return False
+        df, _, _ = self.dictionary[term]
+        return df > threshold
+            
 
     # Searches for multiple terms with TF-IDF scoring
     def searchFor(self, query, top_k=10):
         q_terms = tokenizer.tokenize(query)
+        
         if not q_terms:
             return []
+        
+        expanded_terms = []
+        
+        for t in q_terms:
+            # keep original term 
+            
+            expanded_terms.append(t)
+            
+            # skip synonom expansion if high DF
+            if self.is_high_df(t, threshold=1000):
+                print(f"[INFO] Skipping synonym expansion for high-DF term:  {t}")
+                continue
+            
+            # add synonyms for low-df terms 
+            syns = self.expand_synonyms([t])
+            expanded_terms.extend(syns)
 
+        q_terms = expanded_terms
         # Initialize scores and cache
         scores = defaultdict(float)
         postings_cache = {}
-
+    
         # Read postings once and cache them
         for t in q_terms:
             if t not in self.dictionary:
                 continue
+            
+            # If exact word, use weight 1.0, else use 0.6 for synonom
+            if t in q_terms:
+                query_weight = 1.0
+            else:
+                query_weight = 0.6
+                
             postings = self.read_postings(t)
-            postings_cache[t] = postings
 
             # TF-IDF scoring
             df, _, _ = self.dictionary[t]
             idf_weight = self.idf(df)
+            
             for doc_id, tf, positions in postings:
                 tfw = 1 + math.log(max(tf, 1e-6))
                 scores[doc_id] += tfw * idf_weight
