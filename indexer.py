@@ -82,8 +82,7 @@ def inverted_index():
             current_simhash = SimHash(simhash_val)
 
             if (current_simhash in simhash_set):
-                # Skip if too similar
-                # print(file_name, " is too similar")
+                # print(f"[INFO] Item skipped due to content similarity of threshold {SimHash.threshold}: {file_item.url[0:40]}")
                 skips += 1
                 continue
             else:
@@ -118,7 +117,7 @@ def inverted_index():
 
                 print(f"[INFO] Processed {processed_docs} documents...")
                 print(f"[INFO] {skips} files skipped during this batch due to being too similar in content")
-                skips = 0
+                skips = 0 # resets number of skips per batch
 
     # write final partial
     write_partial_index(index, batch_number)
@@ -210,7 +209,6 @@ def inverted_index():
 
 
 if __name__ == "__main__":
-
     num_docs, unique_tokens = inverted_index()
 
     print("\n===== INDEX STATISTICS =====")

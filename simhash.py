@@ -11,6 +11,8 @@ class SimHash:
     :simhash_value: simhash value that was generated from tokenizing process
     :threshold: can be set, but shouldn't... it's best to set this from `tokenizer.py itself`
     """
+    threshold = THRESHOLD
+    
     def __init__(self, simhash_value:str, threshold=THRESHOLD):
         self.value = simhash_value
         self.threshold = threshold
@@ -32,7 +34,6 @@ class SimHash:
         """
 
         # print(" Equality detected, comparing ", self.value, " and ", other.value)
-
 
         # Checks if other instance is also SimHash
         if not isinstance(other, SimHash): return NotImplemented
