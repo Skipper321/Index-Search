@@ -10,6 +10,8 @@ class SimHash:
 
     def hash_word(my_str:str) -> str:
         """Creates an B BIT hash value from a given string, of binary values only
+
+        NOTE: not to be used with text, should be used with words specifically
         
         Returns a string"""
 
@@ -24,7 +26,6 @@ class SimHash:
             temp_str = temp_str[0:B_BIT]
 
         return temp_str
-
 
     def get_sorted_frequencies(freq:dict, reverse=True):
         """Sort dictionary by key instead 
@@ -67,7 +68,6 @@ class SimHash:
         :False: negative sign (subtraction)
         """
         return (hash_digit == 1)
-
 
     def get_simhash(frequency:dict) -> string:
         """Creates a fingerprint (simhash method) based on the token frequency dictionary

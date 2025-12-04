@@ -77,6 +77,8 @@ def inverted_index():
             pos_dict = parsed["positions"]
             simhash_val = parsed["simhash"]
 
+
+            # Checks similarity (simhash)
             current_sh = sh_item(simhash_val)
             if (simhash_set.add(current_sh) == False):
                 skips += 1
