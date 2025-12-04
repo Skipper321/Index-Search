@@ -43,6 +43,9 @@ class SearchEngine:
 
 
     def read_postings(self, term):
+        """Given a term, read its postings"""
+
+
         info = self.dictionary.get(term)
         if not info:
             return []
@@ -74,6 +77,7 @@ class SearchEngine:
     
     # TF-IDF weighting
     def idf(self, df):
+        """Calculages TF-IDF weighing"""
         return math.log((self.N + 1) / (df + 0.5)) + 1.0
     
     # Phrase match helper - returns set of doc_ids where EXACT phrase occurs
@@ -110,6 +114,11 @@ class SearchEngine:
         return matches
     
     def expand_synonyms(self, terms, max_synonyms = 3):
+        """Given a term, get a set of its synonyms
+        
+        :term: term to find synonyms
+        :max_synonyms=3: number of synonyms to find"""
+
         synonym_terms = set()
         
         for t in terms:
@@ -139,9 +148,19 @@ class SearchEngine:
         df, _, _ = self.dictionary[term]
         return df > threshold
             
+    def getWeightFromTuple(t):
+        """Helper function for accessing tuples in results"""
+        return t[1]
+
 
     # Searches for multiple terms with TF-IDF scoring
     def searchFor(self, query, top_k=10):
+        """Gives search results based on a query, searches for multiple terms with TF-IDF scoring
+        
+        :query: query to search for
+        :top_k=10: number of results"""
+
+
         q_terms = tokenizer.tokenize(query)
         
         if not q_terms:
@@ -207,14 +226,44 @@ class SearchEngine:
         # Top-k results
         top = heapq.nlargest(top_k, scores.items(), key=lambda x: x[1])
         results = [(self.doc_ids[str(doc)], score) for doc, score in top]
+
         return results
 
     def printResults(self, results):
+        """Prints search results"""
+
         if not results:
             return 
         
         for i, (url, score) in enumerate(results, start=1):
             print(f"{i}.{url} (score={score:.4f})")
+
+
+    # SECTION Result sorting
+
+    def getWeightFromTuple(t):
+        """Helper function for sorting result lists, accesses weight in tuple values"""
+        # print(f"Term {t[0]} - with weight {t[1]}")
+        return t[1]
+
+    def sort_results(results_list:list):
+        """Sorts results after merging"""
+        # TODO: Sort the results according to its score from highest to lowest
+        # Must check if this actually works the way it was intended to
+
+        # TODO: need to check time constraint
+        print("Sorting results")
+        results_list.sort(reverse=True, key=SearchEngine.getWeightFromTuple)        
+
+        return results_list
+
+    #!SECTION
+
+
+
+
+
+    #SECTION Boolean search functions
     
     # Boolean helper function to parse and identify the boolean type
     def parse_query_boolean(self, q):
@@ -251,6 +300,8 @@ class SearchEngine:
         right_urls = {u for u, _ in right}
         return [(u, score) for u, score in left if u not in right_urls]
     
+    #!SECTION
+
 
 
 if __name__ == "__main__":
@@ -288,6 +339,8 @@ if __name__ == "__main__":
             results = engine.boolean_not(engine.searchFor(left), engine.searchFor(right))
         elif op == "NONE":
             results = engine.searchFor(query)
+
+        SearchEngine.sort_results(results)
     
         # calculate query search time
         end_time = time.perf_counter()
