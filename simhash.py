@@ -16,15 +16,31 @@ class SimHash:
         self.threshold = threshold
     
     def __hash__(self):
-        # Sets require the hash function, do not change
-        # You should rehash because self.value is a string and hash is an int
-        return hash(self.value)
+        """Hashes the Simhash object
+        
+        Required for sets"""
+
+        return hash((self.value, self.threshold))
 
     def __eq__(self, other):
-        # Assuming that other is also type simhash
-        is_exact = other.value == self.value # exact match
+        """Equality dunder for Simhash items, asusming that the other value is also type SimHash
+        
+        Uses self's threshold (left hand side item)        
+        
+        :other: Other SimHash item
 
-        # Uses self's threshold instead of other
+        """
+
+        # print(" Equality detected, comparing ", self.value, " and ", other.value)
+
+
+        # Checks if other instance is also SimHash
+        if not isinstance(other, SimHash): return NotImplemented
+
+        # Detect exact match
+        is_exact = other.value == self.value 
+
+        # Detect similarity
         is_similar = SimHash.is_similar(other.value, self.value, self.threshold)
 
         return (is_exact | is_similar)
@@ -178,22 +194,16 @@ class SimHash:
         return score
 
 class sh_set:
-    # TODO: need to optimize... especially if we're not using it batch-wise
     """A set of simhashes
     
     Will not accept hashes that are too similar
-
-    :threshold: default threshold is 0.7, but can be changed
     """
 
     def __init__(self, threshold=THRESHOLD):
         self.threshold = threshold 
-        self.values = {}
         self.uniques = set()
+        self.values = {}
         self.size = 0
-
-    def threshold():
-        return THRESHOLD
 
     def add(self, simhash_item):
         """Adds a new simhash item to the simhash set
@@ -210,13 +220,13 @@ class sh_set:
         else:
             # Value was unique enough OR simhash was not found
             self.values[simhash_item] = 1
-            self.size = len(self.uniques)
+            self.size += 1
             return True
     
     def __contains__(self, simhash_item):
         """Returns true if set contains simhash item (or similar simhash items), or false if not
         
-        If threshold = 0, it will always be false
+        If threshold = 0, it will always be false, because no amount of similarity will matter
         """
 
         return simhash_item in self.values
@@ -224,19 +234,44 @@ class sh_set:
     def __sizeof__(self):
         return self.size
 
+    def __len__(self):
+        return self.size
+    
+    def __getitem__(self, key):
+        """Same as dict implementation
+        
+        Returns
+        1: value exists
+        any other: value does not exist"""
+
+        return self.values[key]
+
 
 if __name__ == "__main__":
-    i1 = SimHash("1111000011110000")
-    i2 = SimHash("1111000011110000")
 
-    i3 = SimHash("1111000011110001")
-    i4 = SimHash("1111011111110111")
+    i1 = SimHash("1111000011110000") # 
+    i2 = SimHash("1111000011110000") # same as i1
+    i3 = SimHash("1111000011110001") # differing for 1 character (last char)
+    i4 = SimHash("1011111111111111") # differing for a lot
+    values = [i1, i2, i3, i4] # all values
 
-    print("Hash and equality should both be equal and true (requirement for sets): ", i1 == i1, ", ", hash(i1) == hash(i1))
+    # SECTION - SimHash testing
+    # print("Hash and equality should both be equal and true (requirement for sets): ", i1 == i1, ", ", hash(i1) == hash(i1))
+    # print ("Equal values need to have same similarity (True) and similar hash (True)", i1 == i2, ", ", hash(i1) == hash(i2) )
+    # print ("Different values need to have different similarity (False) and different hash (False): ", i1 == i4, ", ", hash(i1) == hash(i4))
+    # print("Very similar items should be similar (True), but different hash (False): ", i1 == i3, ", ", hash(i1) == hash(i3))
 
-    print ("Equal values need to have same similarity (True) and similar hash (True)", i1 == i2, ", ", hash(i1) == hash(i2) )
-    print ("Different values need to have different similarity (False) and different hash (False): ", i1 == i4, ", ", hash(i1) == hash(i4))
-    print("Very similar items should be similar (True), but different hash (False): ", i1 == i3, ", ", hash(i1) == hash(i3))
+    # SECTION - Set testing
+    values.remove(i3) # testing for i3
+    values.remove(i4)
+    regular_set = set(values)
 
-    myset = sh_set()
-    print("Threshold: ", myset.threshold)
+    # for value in values: regular_set.add(value)
+
+    # print("Size is correct: ", len(regular_set) == len(my_sh_set))
+    # print("All items are in set: ", True if False not in [ value in my_sh_set for value in values] else False )
+    # print("All values are subscriptable: ", True if False not in [ my_sh_set[value] for value in values] else False )
+
+    print("i3 and i4 are not in the set")
+    print("i3 removed, but is in regular set because it's similar (True)", i3 in regular_set)
+    print("i4 removed, but is NOT in regular set because it's not similar enough (False): ", i4 in regular_set)
