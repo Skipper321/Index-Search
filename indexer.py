@@ -2,7 +2,7 @@ from file_items import FileItem
 from tokenizer import tokenize_html  # use the new HTML tokenizer
 import os, json, struct, csv
 import math # support cosine normalization - account for TF-IDF flaws with longer documents
-from simhash import SimHash, sh_set
+from simhash import SimHash
 
 BATCH_SIZE = 2000 # partial index every 2000 documents
 RAW_DIR = "raw/DEV"
@@ -52,7 +52,7 @@ def inverted_index():
     index = {}            # term -> list of (doc_id, freq)
     doc_ids = {}          # doc_id -> URL
     doc_id = 0
-    simhash_set = sh_set() # see simhash_item.py
+    simhash_set = set()     # set of simhashes, should work (run `python simhash.py` to see tests)
     skips = 0 # keeps track of number of skips
     
     batch_number = 0
@@ -78,13 +78,17 @@ def inverted_index():
             simhash_val = parsed["simhash"]
 
 
-            # Checks similarity (simhash)
-            current_sh = SimHash(simhash_val)
-            if (simhash_set.add(current_sh) == False):
-                skips += 1
-                # Skips if too similar
+            # SECTION - Checks similarity (simhash)
+            current_simhash = SimHash(simhash_val)
+
+            if (current_simhash in simhash_set):
+                # Skip if too similar
                 # print(file_name, " is too similar")
+                skips += 1
                 continue
+            else:
+                simhash_set.add(current_simhash)
+                
 
             if len(tf_dict) == 0:
                 continue
