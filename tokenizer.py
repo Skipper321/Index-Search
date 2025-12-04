@@ -12,14 +12,10 @@ stemmer = PorterStemmer()
 stem_cache = {}
 TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 
-# Python constants suck...
-def B_BIT():
-    """Constant for how many bits there should be"""
-    return 16
-
-def THRESHOLD():
-    """Constant for the threshold"""
-    return 0.9 # You are similar if you are 90% or more similar
+# Simhash
+from simhash_item import *
+B_BIT = 16 # Bit constant
+THRESHOLD = 0.9
 
 # run these lines once to download nltk stopwords !
 # import nltk
@@ -28,163 +24,13 @@ def THRESHOLD():
 STOPWORDS = set(stemmer.stem(w) for w in stopwords.words("english")) # use set for fast lookup
 STOPWORD_WEIGHT = 0.5
 
-# For similarity detection
-import hashlib
-
-def get_final_hash(values):
-    """Given the V vector final values, returns a final hash (as a string)"""
-    myhash = ""
-
-    for value in values:
-        myhash += str(1 if value >= 0 else 0)
-
-    return myhash
-
-def get_signs(word):
-    """Given a word, return its signs
-    
-    Returns list of booleans"""
-    return [ determine_sign(item) for item in num_to_list(hash_word(word)) ] 
-
-def determine_sign(hash_digit):
-    """
-    Helper function to determine signs from a hash digit
-
-    :True: positive sign (addition)
-
-    :False: negative sign (subtraction)
-    """
-    return (hash_digit == 1)
-
-# TODO: this is a temporary solution
-# needs work/response from TA since we're not sure how the binary values are generated
-def hash_word(my_str):
-    """Creates an B BIT hash value from a given string, of binary values only"""
-
-    hashcode=hashlib.md5(my_str.encode('utf-8')).hexdigest()
-    result = int(bin(int(hashcode,16))[2:])
-    temp_str = str(result) + ""
-
-    if (len(temp_str) < B_BIT()):
-        temp_str = temp_str*8
-        temp_str = temp_str[0:B_BIT()]
-    if (len(temp_str) > B_BIT()):
-        temp_str = temp_str[0:B_BIT()]
-
-    return temp_str
-
-def num_to_list(hash_val):
-    """Converts a numeric hash value into a list of numbers, helper function for vectorization"""
-    return [int(digit) for digit in str(hash_val)]
-
-def sim_hash(frequency:dict):
-    """Creates a fingerprint (simhash method) based on the token frequency dictionary
-
-    Returns the hash as a string
-
-    Currently doesn't discrimminate with HTML tags, so should be used in areas where the content is likely
-        
-    :tokens: dictionary of token with the keys as frequency
-    """
-
-    # if (type(tokens) != list):
-    #     tokens = tokenize(tokens)
-    
-    # frequency counts how frequent word appears in text (ie. "weights")
-    # unique = set(tokens)
-    # frequency = {}
-    # for word in unique:
-    #     frequency[word] = tokens.count(word)
-
-    weights = getSortedList(frequency) # A list of [word, frequency] items sorted by frequency
-    n = len(weights)
-
-    # Create V vector
-    # NOTE: IMPORTANT!! this MUST be in the sorted order of `weights`)
-    signs = [ get_signs(item[0]) for item in weights ]
-    # A list of list<boolean> of size n
-    # Each entry representing a hash value, of size b-bit
-
-    # Optionally prints the weights
-    # for i in range(0, len(signs)): 
-    #     print(weights[i][0], " has weight: " , weights[i][1], " and signs: ", signs[i])
-
-    # Calculates the v vector sum
-    sum = 0
-    position_sum = []
-
-    # j = rows (number of words)
-    # i = columns (always 8 or however many bits)
-    for i in range (0, B_BIT()):
-        current_sum = 0
-
-        for j in range(0, n):
-            # current_word = weights[j][0] 
-            current_weight = weights[j][1]
-            current_sign = signs[j][i]
-            current_sum += current_weight if current_sign else current_weight*(-1)
-
-        position_sum.append(current_sum)        
-        sum += current_sum
-
-    # Optionally prints the sum for each position
-    # print("sums at each positions: (index = item) ", position_sum)
-    result = get_final_hash(position_sum)
-            
-    return result
-
-def is_similar(hash1:string, hash2:string, threshold=THRESHOLD()):
-    """Given two hashes, determine if they are similar
-    
-    :hash1: hash of item 1
-    :hash2: hash of item 2
-    :threshold=0.9: if similarity >= threshold, then it's too similar"""
-
-    common_count = 0
-
-    sh1 = hash1.split()
-    sh2 = hash1.split()
-
-    for i in range(0, B_BIT()):
-        if sh1[i] == sh2[i]:
-            common_count += 1
-    
-    # n bits = 8
-    score = common_count/B_BIT()
-    return score >= THRESHOLD()
-
-def getSortedList(freq:dict):
-    """sort dictionary by key instead 
-    returns a list[[i, frequency]]"""
-
-    valueSorted = sorted(freq, key=freq.get, reverse=True)
-    myList = []
-
-    for i in valueSorted:
-        current = [i, freq[i]]
-        myList.append(current)
-    
-    return myList
 
 #!SECTION - Output helper functions
-
-def getSortedList(freq:dict):
-    """sort dictionary by key instead 
-    returns a list[[i, frequency]]"""
-
-    valueSorted = sorted(freq, key=freq.get, reverse=True)
-    myList = []
-
-    for i in valueSorted:
-        current = [i, freq[i]]
-        myList.append(current)
-    
-    return myList
 
 # prints dict - renamed so that doesn't interfere with built in print function
 # returns list (optional)
 def print_freq(freq:dict) -> list:
-    myList = getSortedList(freq)
+    myList = SimHash.getSortedList(freq)
 
     for i in myList:
         current = i[0] + " -> " + str(i[1])
@@ -387,7 +233,7 @@ def tokenize_html(html: str):
         # Iterate to next position
         pos += 1
 
-    sim_hash_value = sim_hash(unstemmed_tokens)
+    sim_hash_value = SimHash.get_simhash(unstemmed_tokens)
 
     return {
         "tf": token_freqs,
@@ -424,29 +270,30 @@ if __name__ == '__main__':
     </html>
     """
 
-#     sample_fingerprinting = ["I love diving, I love love love love",
-#                              """Hashing a string to a specific length - encryption
+    sample_fingerprinting = ["I love diving, I love love love love",
+                             """Hashing a string to a specific length - encryption
 
-# Stack Overflow
-# 3 answers · 8 years ago
-# SHA<whatever> always output a hash of a fixed length. If you want it longer, append random bytes to it and remove them if you need to compare.
+Stack Overflow
+3 answers · 8 years ago
+SHA<whatever> always output a hash of a fixed length. If you want it longer, append random bytes to it and remove them if you need to compare.
 
-# Secure way to shorten a hash
+Secure way to shorten a hash
 
-# Information Security Stack Exchange
-# https://security.stackexchange.com › questions › secure-...
-# Aug 20, 2015 — Simply truncating a hash is the common and accepted way to shorten it. You don't need to do anything fancy.
+Information Security Stack Exchange
+https://security.stackexchange.com › questions › secure-...
+Aug 20, 2015 — Simply truncating a hash is the common and accepted way to shorten it. You don't need to do anything fancy.
 
-# Creating a unique hash given input size is constant
+Creating a unique hash given input size is constant
 
-# Reddit · r/AskComputerScience
-# 3 comments · 5 years ago
-# All hash functions are constrained by the counting principle - if your hash has N bits, but your input has more than N bits, there will be hash ...
-# Missing: make ‎| Show results with: make
-# """]
+Reddit · r/AskComputerScience
+3 comments · 5 years ago
+All hash functions are constrained by the counting principle - if your hash has N bits, but your input has more than N bits, there will be hash ...
+Missing: make ‎| Show results with: make
+"""]
 
-#     for sample in sample_fingerprinting:
-#         print(sim_hash(computeWordFrequencies(tokenize(sample))))
+
+    for sample in sample_fingerprinting:
+        print(SimHash.get_simhash(computeWordFrequencies(tokenize(sample))))
 
     # tokens = tokenize_html(samplehtml)
     # print("Weighted tokens:\n")
