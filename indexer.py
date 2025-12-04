@@ -2,7 +2,7 @@ from file_items import FileItem
 from tokenizer import tokenize_html  # use the new HTML tokenizer
 import os, json, struct, csv
 import math # support cosine normalization - account for TF-IDF flaws with longer documents
-from simhash_item import sh_item, sh_set
+from simhash import SimHash, sh_set
 
 BATCH_SIZE = 2000 # partial index every 2000 documents
 RAW_DIR = "raw/DEV"
@@ -79,7 +79,7 @@ def inverted_index():
 
 
             # Checks similarity (simhash)
-            current_sh = sh_item(simhash_val)
+            current_sh = SimHash(simhash_val)
             if (simhash_set.add(current_sh) == False):
                 skips += 1
                 # Skips if too similar

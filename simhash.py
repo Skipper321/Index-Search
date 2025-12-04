@@ -6,7 +6,32 @@ B_BIT = 16 # Bit constant
 THRESHOLD = 0.9
 
 class SimHash:
-    """Helper class to organize functions that are similar to each other for Simhash"""
+    """Simhash item, representing a single simhash value for a given document. Created for comparison purposes.
+    
+    :simhash_value: simhash value that was generated from tokenizing process
+    :threshold: can be set, but shouldn't... it's best to set this from `tokenizer.py itself`
+    """
+    def __init__(self, simhash_value:str, threshold=THRESHOLD):
+        self.value = simhash_value
+        self.threshold = threshold
+    
+    def __hash__(self):
+        # Sets require the hash function, do not change
+        # You should rehash because self.value is a string and hash is an int
+        return hash(self.value)
+
+    def __eq__(self, other):
+        # Assuming that other is also type simhash
+        is_exact = other.value == self.value # exact match
+
+        # Uses self's threshold instead of other
+        is_similar = SimHash.is_similar(other.value, self.value, self.threshold)
+
+        return (is_exact | is_similar)
+
+
+
+    # SECTION - Publically available functions for SimHash
 
     def hash_word(my_str:str) -> str:
         """Creates an B BIT hash value from a given string, of binary values only
@@ -152,34 +177,6 @@ class SimHash:
 
         return score
 
-
-class sh_item:
-    """Simhash item, representing a single simhash
-    
-    :simhash_value: simhash value that was generated from tokenizing process
-    :threshold: can be set, but shouldn't... it's best to set this from `tokenizer.py itself`
-    """
-    def __init__(self, simhash_value:str, threshold=THRESHOLD):
-        self.value = simhash_value
-        self.threshold = threshold
-    
-    def __hash__(self):
-        # Sets require the hash function, do not change
-        # You should rehash because self.value is a string and hash is an int
-        return hash(self.value)
-
-    def __eq__(self, other):
-        # Assuming that other is also type simhash
-        is_exact = other.value == self.value # exact match
-
-        score = SimHash.get_similarity_score(other.value, self.value)
-
-        # print("Comparing ", self.value, " to ", other.value)
-        # print("Score: ", score, "| Threshold: ", self.threshold)
-
-        is_similar = (score >= self.threshold)
-        return is_exact | is_similar
-
 class sh_set:
     # TODO: need to optimize... especially if we're not using it batch-wise
     """A set of simhashes
@@ -198,49 +195,48 @@ class sh_set:
     def threshold():
         return THRESHOLD
 
-    def add(self, simhash:sh_item):
+    def add(self, simhash_item):
         """Adds a new simhash item to the simhash set
 
         True: Value was unique or similar
         False: Value was not unique or similar
         """
-        self.uniques.add(simhash.value) # don't add the simhash object itself
+        self.uniques.add(simhash_item.value) # don't add the simhash object itself
 
-        if (self.size == len(self.uniques) | self.__contains__(sh_item)):
+        if (self.size == len(self.uniques) | self.__contains__(simhash_item)):
             # Value was not unique OR simhash value was too similar
             # print("Too similar: ", simhash.value)
             return False 
         else:
             # Value was unique enough OR simhash was not found
-            self.values[sh_item] = 1
+            self.values[simhash_item] = 1
             self.size = len(self.uniques)
             return True
     
-    def __contains__(self, simhash:sh_item):
+    def __contains__(self, simhash_item):
         """Returns true if set contains simhash item (or similar simhash items), or false if not
         
         If threshold = 0, it will always be false
         """
 
-        return simhash in self.values
+        return simhash_item in self.values
 
     def __sizeof__(self):
         return self.size
 
 
 if __name__ == "__main__":
-    i1 = sh_item("1111000011110000")
-    i2 = sh_item("1111000011110000")
+    i1 = SimHash("1111000011110000")
+    i2 = SimHash("1111000011110000")
 
-    i3 = sh_item("1111000011110001")
-    i4 = sh_item("1111011111110111")
+    i3 = SimHash("1111000011110001")
+    i4 = SimHash("1111011111110111")
 
     print("Hash and equality should both be equal and true (requirement for sets): ", i1 == i1, ", ", hash(i1) == hash(i1))
 
-    print ("Should be both true: ", i1 == i2, ", ", hash(i1) == hash(i2) )
-    print ("Should be both false: ", i1 == i4, ", ", hash(i1) == hash(i4))
-    print("Similarity test: ", i1 == i3, ", ", hash(i1) == hash(i3))
+    print ("Equal values need to have same similarity (True) and similar hash (True)", i1 == i2, ", ", hash(i1) == hash(i2) )
+    print ("Different values need to have different similarity (False) and different hash (False): ", i1 == i4, ", ", hash(i1) == hash(i4))
+    print("Very similar items should be similar (True), but different hash (False): ", i1 == i3, ", ", hash(i1) == hash(i3))
 
     myset = sh_set()
-
     print("Threshold: ", myset.threshold)

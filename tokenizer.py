@@ -13,7 +13,7 @@ stem_cache = {}
 TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 
 # Simhash
-from simhash_item import *
+from simhash import *
 B_BIT = 16 # Bit constant
 THRESHOLD = 0.9
 
