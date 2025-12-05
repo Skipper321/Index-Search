@@ -128,7 +128,7 @@ class SearchEngine:
         
         # Try OR search
         or_query = " OR ".join(q_terms)
-        results = self.searchFor(or_query)
+        results = self.searchFor(or_query, allow_fallback=False)
         if results:
             print("[INFO] Fallback: switched to OR search")
             return results
@@ -143,7 +143,7 @@ class SearchEngine:
 
         content_terms = [t for t in q_terms if t not in STOPWORDS]
         if content_terms:
-            results = self.searchFor(" ".join(content_terms))
+            results = self.searchFor(" ".join(content_terms), allow_fallback=False)
             if results:
                 print("[INFO] Fallback: removed stopwords and retried search.")
                 return results
@@ -157,7 +157,7 @@ class SearchEngine:
 
         if syns:
             syn_query = " ".join(syns)
-            results = self.searchFor(syn_query)
+            results = self.searchFor(syn_query, allow_fallback=False)
             if results:
                 print("[INFO] Fallback: synonym search")
                 return results
@@ -192,7 +192,7 @@ class SearchEngine:
 
 
     # Searches for multiple terms with TF-IDF scoring
-    def searchFor(self, query, top_k=10):
+    def searchFor(self, query, top_k=10, allow_fallback = True):
         """Gives search results based on a query, searches for multiple terms with TF-IDF scoring
         
         :query: query to search for
@@ -256,8 +256,12 @@ class SearchEngine:
             scores = {d: scores[d] * 2.0 for d in phrase_docs}
 
         if not scores:
-            print("[INFO] No direct results, trying fallback search...")
-            return self.fallback_search(list(q_terms_original))
+            if allow_fallback:
+                print("[INFO] No direct results, trying fallback search...")
+                return self.fallback_search(list(q_terms_original))
+            else:
+                # if fallback fails as well, do not fallback again.
+                return []
 
         # Cosine normalization
         for doc_id in list(scores.keys()):
