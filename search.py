@@ -153,7 +153,8 @@ class SearchEngine:
         :top_k=10: number of results"""
 
 
-        q_terms = tokenizer.tokenize(query)
+        q_terms_original = set(tokenizer.tokenize(query))
+        q_terms = list(q_terms_original)  # list for iteration
         
         if not q_terms:
             return []
@@ -184,8 +185,8 @@ class SearchEngine:
             if t not in self.dictionary:
                 continue
             
-            # If exact word, use weight 1.0, else use 0.6 for synonom
-            if t in q_terms:
+            # If exact word, use weight 1.0, else use 0.6 for synonym
+            if t in q_terms_original:
                 query_weight = 1.0
             else:
                 query_weight = 0.6
@@ -198,7 +199,7 @@ class SearchEngine:
             
             for doc_id, tf, positions in postings:
                 tfw = 1 + math.log(max(tf, 1e-6))
-                scores[doc_id] += tfw * idf_weight
+                scores[doc_id] += tfw * idf_weight * query_weight
 
         # Check for phrase search (any number of words in quotes)
         normalized_query = query.strip().lower()
