@@ -5,11 +5,12 @@ import time
 from collections import defaultdict
 import nltk 
 from nltk.corpus import wordnet as wn
+from nltk.corpus import stopwords
 
 #nltk.download("wordnet")
 #nltk.download("omw-1.4")
 
-
+STOPWORDS = set(stopwords.words("english"))
 
 class SearchEngine:
 
@@ -40,9 +41,9 @@ class SearchEngine:
         self.postings_path = "index/postings.bin"
         self.postings_file = open(self.postings_path, "rb")  # open once
 
-        print(f"[INFO] Loaded dictionary with {len(self.dictionary)} terms.")
-        print(f"[INFO] Ready to search {self.N} documents.")
-        print(f"[INFO] Loaded doc normalizations")
+        #print(f"[INFO] Loaded dictionary with {len(self.dictionary)} terms.")
+        #print(f"[INFO] Ready to search {self.N} documents.")
+        #print(f"[INFO] Loaded doc normalizations")
 
 
     def read_postings(self, term):
@@ -121,6 +122,51 @@ class SearchEngine:
                     break
 
         return matches
+    
+    # fallback_search, when primary search returns 0 results, will try weaker searches to get something useful
+    def fallback_search(self, q_terms):
+        
+        # Try OR search
+        or_query = " OR ".join(q_terms)
+        results = self.searchFor(or_query)
+        if results:
+            print("[INFO] Fallback: switched to OR search")
+            return results
+        
+        # Try removing stopwords and search 
+        print("[INFO] Trying fallback: removing stopwords")
+        
+        # if query only contains stopwords i.e "to be or not to be"
+        if not q_terms or all(t in STOPWORDS for t in q_terms):
+            print("[INFO] Fallback stopped: query contained only stopwords.")
+            return []
+
+        content_terms = [t for t in q_terms if t not in STOPWORDS]
+        if content_terms:
+            results = self.searchFor(" ".join(content_terms))
+            if results:
+                print("[INFO] Fallback: removed stopwords and retried search.")
+                return results
+        
+        # Try synonyms of each term
+        syns = []
+        for t in q_terms:
+            syn_list = self.synonym_cache.get(t, [])
+            syns.extend(syn_list[:3])
+        syns = [s for s in syns if s in self.dictionary]
+
+        if syns:
+            syn_query = " ".join(syns)
+            results = self.searchFor(syn_query)
+            if results:
+                print("[INFO] Fallback: synonym search")
+                return results
+        
+        # Otherwise nothing found
+
+        print("[INFO] Nothing was found in the corpus")
+        return []
+
     
     def expand_synonyms(self, terms, max_synonyms = 3):
         """Given a term, get a set of its synonyms
@@ -210,7 +256,8 @@ class SearchEngine:
             scores = {d: scores[d] * 2.0 for d in phrase_docs}
 
         if not scores:
-            return []
+            print("[INFO] No direct results, trying fallback search...")
+            return self.fallback_search(list(q_terms_original))
 
         # Cosine normalization
         for doc_id in list(scores.keys()):
@@ -232,7 +279,7 @@ class SearchEngine:
             print(f"{i}.{url} (score={score:.4f})")
 
 
-    # SECTION Result sorting
+    
 
     def getWeightFromTuple(t):
         """Helper function for sorting result lists, accesses weight in tuple values"""
@@ -244,19 +291,12 @@ class SearchEngine:
         # TODO: Sort the results according to its score from highest to lowest
         # Must check if this actually works the way it was intended to
 
-        # TODO: need to check time constraint
-        print("Sorting results")
+        # print("Sorting results") 
         results_list.sort(reverse=True, key=SearchEngine.getWeightFromTuple)        
 
         return results_list
 
-    #!SECTION
-
-
-
-
-
-    #SECTION Boolean search functions
+    # Boolean search functions
     
     # Boolean helper function to parse and identify the boolean type
     def parse_query_boolean(self, q):
@@ -293,18 +333,16 @@ class SearchEngine:
         right_urls = {u for u, _ in right}
         return [(u, score) for u, score in left if u not in right_urls]
     
-    #!SECTION
+    
 
 
 
 if __name__ == "__main__":
-    # Testings sample queries 
     engine = SearchEngine()
     
     print("\nSimple Boolean Query Search Engine - Developer:")
     print("Supports boolean operations 'AND', 'OR', 'NOT'")
     print("Supports exact phrase searches using double quotes, e.g., \"building software solutions\"")
-    print("Exact Phrase examples: \"the document\", \"machine learning\"")
     print("Input a search term(s), or type '/quit' to exit.\n")
 
     while True:
@@ -314,7 +352,16 @@ if __name__ == "__main__":
         if query.lower() == "/quit":
             break
 
-        print(query)
+        terms = tokenizer.tokenize(query)
+        # Remove Boolean operators from the terms list for this check
+        BOOLEAN_OPS = {"and", "or", "not"}
+        terms = [t for t in terms if t not in BOOLEAN_OPS]
+
+        # If ALL terms = stopwords → do NOT search
+        if not terms or all(t in STOPWORDS for t in terms):
+            print("[INFO] Query contains only stopwords — nothing to search.")
+            print("No results.\n")
+            continue
 
         op = engine.parse_query_boolean(query)
 
@@ -333,6 +380,14 @@ if __name__ == "__main__":
         elif op == "NONE":
             results = engine.searchFor(query)
 
+        # fallback search if no search terms are returned 
+        if not results:
+            raw_terms = tokenizer.tokenize(query)
+            if raw_terms:
+                results = engine.fallback_search(raw_terms)
+            else:
+                print(f"[INFO] No results found for: {raw_terms}")
+
         SearchEngine.sort_results(results)
     
         # calculate query search time
@@ -341,9 +396,5 @@ if __name__ == "__main__":
 
         engine.printResults(results)
         print(f"\nQuery returned {len(results)} results in {elapsed_time:.2f} ms.")
-        if elapsed_time <= 300:
-            print("[INFO] Query executed under 300 ms.\n\n")
-        else:
-            print("[INFO] Query took longer than 300 ms.\n\n")
 
     
