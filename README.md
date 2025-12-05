@@ -4,16 +4,25 @@ A repository for CS121 A3:
 - Lola lolak@uci.edu
 - Julie minhab@uci.edu
 
+# Indexer: 
 Inputs: 
 - Developer.zip: A large amount of webpages
 
 Outputs:
 - final.json of all unqiue tokens and summary statistics.
 
+# Search-Engine
+Inputs: 
+- corpus (final.json, dictionary.csv...etc)
+-  Query
+
+Outputs:
+- Query result for search
+
 Link to report: 
 - Milestone 1: https://docs.google.com/document/d/1cZwJC8PhzzUrJywTjfjHYW5TceV56hibrpc7OzomDg4/edit?usp=sharing
 - Milestone 2: https://docs.google.com/document/d/1t9j7l9-JcMc1LynbtnXDpVnN_h_JOydY1PZQoV7ZJoc/edit?usp=sharing
-- MIlestone 3:
+- MIlestone 3: https://docs.google.com/document/d/1YwZrqSAVuFAfnttZwDv1nRH53wk4ydIEIqlHmo_BTfU/edit?usp=sharing
 
 
 ## Indexer - General notes
