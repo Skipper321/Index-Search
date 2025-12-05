@@ -325,13 +325,16 @@ class SearchEngine:
         common = left_dict.keys() & right_dict.keys()
         return [(u, left_dict[u] + right_dict[u]) for u in common]
 
-    def boolean_or(self, left, right):
+    def boolean_or(self, left, right, top_k = 10):
         combined = {}
         for url, score in left:
             combined[url] = max(score, combined.get(url, 0))
         for url, score in right:
             combined[url] = max(score, combined.get(url, 0))
-        return [(u, combined[u]) for u in combined]
+
+        sorted_results = sorted(combined.items(), key=lambda x: x[1], reverse=True)
+        # return only top-k (10)
+        return sorted_results[:top_k]
 
     def boolean_not(self, left, right):
         right_urls = {u for u, _ in right}
