@@ -317,7 +317,46 @@ class SearchEngine:
         
         return op
     
-    # Boolean operators configured to work with documents
+    def split_boolean(self, q):
+        """split boolean queries to be able to handle more than one operator per query"""
+        tokens = q.split()
+        processed_tokens = []
+        for t in tokens:
+            if t.upper() in ("AND", "OR", "NOT"):
+                processed_tokens.append(t.upper())
+            else:
+                processed_tokens.append(t.lower())
+        return processed_tokens
+    
+    def eval_boolean(self, q):
+        tokens = self.split_boolean(q)
+
+        # except more than 3 terms for multi-operator boolean queries
+        if len(tokens) < 3:
+            return self.searchFor(q)
+        
+        # start search with the first term
+        result = self.searchFor(tokens[0])
+
+        i = 1
+        while i < len(tokens) - 1:
+            op = tokens[i]
+            right_term = tokens[i + 1]
+
+            right_result = self.searchFor(right_term)
+
+            if op == "AND":
+                result = self.boolean_and(result, right_result)
+            elif op == "OR":
+                result = self.boolean_or(result, right_result)
+            elif op == "NOT":
+                result = self.boolean_not(result, right_result)
+
+            i += 2
+
+        return result
+    
+
     def boolean_and(self, left, right):
         # left / right are lists of [url, score]
         left_dict = {url:score for url, score in left}
@@ -339,8 +378,7 @@ class SearchEngine:
     def boolean_not(self, left, right):
         right_urls = {u for u, _ in right}
         return [(u, score) for u, score in left if u not in right_urls]
-    
-    
+
 
 
 
@@ -375,17 +413,20 @@ if __name__ == "__main__":
         # start query time
         start_time = time.perf_counter()
         
-        if op is not None and op == "AND":
-            left, right = [s.strip() for s in query.upper().split("AND")]
-            results = engine.boolean_and(engine.searchFor(left), engine.searchFor(right))
-        elif op == "OR":
-            left, right = [s.strip() for s in query.upper().split("OR")]
-            results = engine.boolean_or(engine.searchFor(left), engine.searchFor(right))
-        elif op == "NOT":
-            left, right = [s.strip() for s in query.upper().split("NOT")]
-            results = engine.boolean_not(engine.searchFor(left), engine.searchFor(right))
-        elif op == "NONE":
-            results = engine.searchFor(query)
+        # Evaluate query using your boolean engine (left-to-right)
+        results = engine.eval_boolean(query)
+
+        # if op is not None and op == "AND":
+        #     left, right = [s.strip() for s in query.upper().split("AND")]
+        #     results = engine.boolean_and(engine.searchFor(left), engine.searchFor(right))
+        # elif op == "OR":
+        #     left, right = [s.strip() for s in query.upper().split("OR")]
+        #     results = engine.boolean_or(engine.searchFor(left), engine.searchFor(right))
+        # elif op == "NOT":
+        #     left, right = [s.strip() for s in query.upper().split("NOT")]
+        #     results = engine.boolean_not(engine.searchFor(left), engine.searchFor(right))
+        # elif op == "NONE":
+        #     results = engine.searchFor(query)
 
         # fallback search if no search terms are returned 
         if not results:
