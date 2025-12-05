@@ -3,6 +3,12 @@ from tokenizer import tokenize_html  # use the new HTML tokenizer
 import os, json, struct, csv
 import math # support cosine normalization - account for TF-IDF flaws with longer documents
 from simhash import SimHash
+import nltk
+from nltk.corpus import wordnet as wn
+
+# uncomment if WordNet hasn't been downloaded yet
+# nltk.download("wordnet")
+# nltk.download("omw-1.4")
 
 BATCH_SIZE = 2000 # partial index every 2000 documents
 RAW_DIR = "raw/DEV"
@@ -48,6 +54,7 @@ def merge_indexes() -> dict:
 
 def inverted_index():
     """Creates an inverted index"""
+    os.makedirs("index", exist_ok=True)
 
     index = {}            # term -> list of (doc_id, freq)
     doc_ids = {}          # doc_id -> URL
@@ -156,12 +163,39 @@ def inverted_index():
 
     print("[INFO] Final index written with cosine normalization.")
 
+    # generate a synonyms.json for synonym expansion in search engine
+    print("[INFO] Generating synonyms.json...")
+    synonym_dict = {}
+
+    for term in final_index.keys():
+        syns = set()
+
+        for syn in wn.synsets(term):
+            for lemma in syn.lemmas():
+                word = lemma.name().lower().replace("_", " ")
+
+                if word != term:
+                    syns.add(word)
+
+                if len(syns) >= 3:
+                    break
+
+            if len(syns) >= 3:
+                break
+
+        synonym_dict[term] = list(syns)
+
+    syn_path = "index/synonyms.json"
+
+    with open(syn_path, "w", encoding="utf-8") as f:
+        json.dump(synonym_dict, f, ensure_ascii=False, indent=2)
+        
+    print(f"[INFO] Saved synonyms.json with {len(synonym_dict)} terms.")
+
     # ---------------------------------------------------------
     # WRITE BINARY INDEX FOR SEARCH (Developer Route requirement)
     # ---------------------------------------------------------
     print("[INFO] Writing binary postings...")
-
-    os.makedirs("index", exist_ok=True)
 
     postings_path = "index/postings.bin"
     dict_rows = []

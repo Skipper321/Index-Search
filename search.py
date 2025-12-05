@@ -14,7 +14,6 @@ from nltk.corpus import wordnet as wn
 class SearchEngine:
 
     def __init__(self):
-    
         # Load dictionary into memory (small)
         with open("index/dictionary.csv", "r", encoding="utf-8") as f:
             rdr = csv.DictReader(f)
@@ -22,7 +21,10 @@ class SearchEngine:
                 row["term"]: (int(row["df"]), int(row["offset"]), int(row["length"]))
                 for row in rdr
             }
-        
+        # Load precomputed synonyms
+        with open("index/synonyms.json", "r", encoding="utf-8") as f:
+            self.synonym_cache = json.load(f)
+
         with open("doc_ids.json", "r", encoding="utf-8") as f:
             self.doc_ids = json.load(f) # keys are strings
 
@@ -36,6 +38,7 @@ class SearchEngine:
 
 
         self.postings_path = "index/postings.bin"
+        self.postings_file = open(self.postings_path, "rb")  # open once
 
         print(f"[INFO] Loaded dictionary with {len(self.dictionary)} terms.")
         print(f"[INFO] Ready to search {self.N} documents.")
@@ -53,9 +56,11 @@ class SearchEngine:
         df, offset, length = info
 
         postings = []
-        with open(self.postings_path, "rb") as f:
-            f.seek(offset)
-            block = f.read(length)
+        self.postings_file.seek(offset)
+        block = self.postings_file.read(length)
+        # with open(self.postings_path, "rb") as f:
+        #     f.seek(offset)
+        #     block = f.read(length)
 
         ptr = 0
 
@@ -75,6 +80,10 @@ class SearchEngine:
 
         return postings
     
+    def __del__(self):
+        if hasattr(self, "postings_file"):
+            self.postings_file.close()
+
     # TF-IDF weighting
     def idf(self, df):
         """Calculages TF-IDF weighing"""
@@ -118,29 +127,12 @@ class SearchEngine:
         
         :term: term to find synonyms
         :max_synonyms=3: number of synonyms to find"""
-
-        synonym_terms = set()
-        
+        expanded = set()
         for t in terms:
-            # get wordnet synonoms
-            synsets = wn.synsets(t)
-            count = 0
-            
-            for syn in synsets:
-                for lemma in syn.lemmas():
-                    if count >= max_synonyms: # if more than 3 syn break
-                        break
-                    word = lemma.name().lower().replace("_", " ")
-                    
-                    # tokenize and stem synonom
-                    tok = tokenizer.tokenize(word)
-                    if tok:
-                        synonym_terms.add(tok[0])
-                        count += 1
-                if count >= max_synonyms:
-                    break
-        
-        return synonym_terms
+            expanded.add(t)  # always include the original term
+            syns = self.synonym_cache.get(t, [])  # look up precomputed synonyms
+            expanded.update(syns)
+        return expanded
     
     def is_high_df(self, term, threshold=1000):
         if term not in self.dictionary:
@@ -178,9 +170,9 @@ class SearchEngine:
                 print(f"[INFO] Skipping synonym expansion for high-DF term:  {t}")
                 continue
             
-            # add synonyms for low-df terms 
+            # add synonyms for low-DF terms from cache
             syns = self.expand_synonyms([t])
-            expanded_terms.extend(syns)
+            expanded_terms.extend([syn for syn in syns if syn != t])  # avoid adding the original term twice
 
         q_terms = expanded_terms
         # Initialize scores and cache
