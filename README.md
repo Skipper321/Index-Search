@@ -4,6 +4,12 @@ A repository for CS121 A3:
 - Lola lolak@uci.edu
 - Julie minhab@uci.edu
 
+## How to run: 
+1. [Install](Installations-required) dependencies
+2. [Run the installer](Running-the-installer)
+3. Run the indexer: `python indexer.py` (files too big, please run before searching)
+4. Run the search: `python search.py`
+
 # Indexer: 
 Inputs: 
 - Developer.zip: A large amount of webpages
@@ -47,12 +53,6 @@ Note: my .gitignore includes `analyst.zip` and `developer.zip` because we alread
 `def parse_contents`: Functional
 `tokenizer.py`: Functional
 'search.py': Functional
-
-## How to run: 
-1. [Install](Installations-required) dependencies
-2. [Run the installer](Running-the-installer)
-3. Run the indexer: `python indexer.py` (files too big, please run before searching)
-4. Run the search: `python search.py`
 
 ### Installations required
 `python -pip install nltk`
